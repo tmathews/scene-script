@@ -1,0 +1,25 @@
+script Entry:
+	Name(`???`)
+	if OnMap(1) or OnMap(3): 
+		run TeleportOptions
+	elif OnMap(2):
+		if HasItem(`SecretShopToken`, 1):
+			run ShopOptions
+		else:
+			Dialog(`Way the wind blows...`)
+			end
+	Dialog(`Howdy there, fancy seeing you here.`)
+
+script ShopOptions:
+	# TODO I can't figure out a good name, figure it out
+	Name(`GoothBert`)
+	Dialog(`Ah I see you have a ${Item:SecretShopToken}, fancy some of my warez will ya.`)
+	OpenShop(`GoothBert`)
+
+script TeleportOptions:
+	Prompt(`Would you like to go to the secret tree?`, `Yes`, `No`)
+	if Answer(1):
+		Dialog(`Away we go!`)
+		Teleport(2, `Entrance`)
+	else:
+		Dialog(`Alright, I'll be here any time.`)
