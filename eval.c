@@ -272,16 +272,20 @@ static int step_expr(SS_context *ctx) {
 		if (f->expr.phase == 1) {
 			SS_value left = ctx->result;
 			ctx->result = SS_nil_value();
-			if (!SS_value_is_boolean(&left)) {
-				SS_value_free(&left);
-				return -1;
-			}
-			bool lb = SS_value_bool(&left);
-			if ((expr->op == SS_TOK_AND && !lb) || (expr->op == SS_TOK_OR && lb)) {
-				ctx->result = SS_bool_value(lb);
-				SS_value_free(&left);
-				pop_frame(ctx);
-				return 0;
+			/* Short-circuit for and/or */
+			if (expr->op == SS_TOK_AND || expr->op == SS_TOK_OR) {
+				if (!SS_value_is_boolean(&left)) {
+					SS_value_free(&left);
+					return -1;
+				}
+				bool lb = SS_value_bool(&left);
+				if ((expr->op == SS_TOK_AND && !lb) ||
+					(expr->op == SS_TOK_OR && lb)) {
+					ctx->result = SS_bool_value(lb);
+					SS_value_free(&left);
+					pop_frame(ctx);
+					return 0;
+				}
 			}
 			f->expr.left = left;
 			f->expr.has_left = true;
@@ -293,25 +297,72 @@ static int step_expr(SS_context *ctx) {
 		ctx->result = SS_nil_value();
 		SS_value left = f->expr.left;
 		f->expr.has_left = false;
-		if (!SS_value_is_boolean(&right)) {
-			SS_value_free(&left);
-			SS_value_free(&right);
-			return -1;
-		}
-		bool lb = SS_value_bool(&left);
-		bool rb = SS_value_bool(&right);
-		SS_value_free(&left);
-		SS_value_free(&right);
+		bool ok = true;
 		switch (expr->op) {
 		case SS_TOK_AND:
-			ctx->result = SS_bool_value(lb && rb);
+		case SS_TOK_OR: {
+			if (!SS_value_is_boolean(&left) || !SS_value_is_boolean(&right)) {
+				ok = false;
+				break;
+			}
+			bool lb = SS_value_bool(&left);
+			bool rb = SS_value_bool(&right);
+			ctx->result = SS_bool_value(
+				expr->op == SS_TOK_AND ? (lb && rb) : (lb || rb));
 			break;
-		case SS_TOK_OR:
-			ctx->result = SS_bool_value(lb || rb);
-			break;
-		default:
-			return -1;
 		}
+		case SS_TOK_IS: {
+			bool eq = false;
+			if (left.type != right.type) {
+				eq = false;
+			} else {
+				switch (left.type) {
+				case SS_VAL_NIL:
+					eq = true;
+					break;
+				case SS_VAL_BOOL:
+					eq = left.boolean == right.boolean;
+					break;
+				case SS_VAL_NUMBER:
+					eq = left.number == right.number;
+					break;
+				case SS_VAL_STRING:
+					eq = strcmp(left.string, right.string) == 0;
+					break;
+				}
+			}
+			ctx->result = SS_bool_value(eq);
+			break;
+		}
+		case SS_TOK_GT:
+		case SS_TOK_GTE:
+		case SS_TOK_LT:
+		case SS_TOK_LTE: {
+			if (left.type != SS_VAL_NUMBER || right.type != SS_VAL_NUMBER) {
+				ok = false;
+				break;
+			}
+			double l = left.number, r = right.number;
+			bool cmp = false;
+			if (expr->op == SS_TOK_GT)
+				cmp = l > r;
+			else if (expr->op == SS_TOK_GTE)
+				cmp = l >= r;
+			else if (expr->op == SS_TOK_LT)
+				cmp = l < r;
+			else
+				cmp = l <= r;
+			ctx->result = SS_bool_value(cmp);
+			break;
+		}
+		default:
+			ok = false;
+			break;
+		}
+		SS_value_free(&left);
+		SS_value_free(&right);
+		if (!ok)
+			return -1;
 		pop_frame(ctx);
 		return 0;
 	}

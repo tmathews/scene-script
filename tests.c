@@ -346,6 +346,116 @@ static void test_eval_conditional_and_or(void) {
 	SS_program_free(&p);
 }
 
+static void test_eval_comparators(void) {
+	/* is: equality */
+	const char *src_is =
+		"script Entry:\n"
+		"\tif 3 is 3:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 3 is 4:\n"
+		"\t\tHelloWorld()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src_is) == 0, "Init failed (is)");
+	test_eval_state st = {0};
+	int rc = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(rc == 0, "Run failed (is)");
+	ASSERT(st.hello_count == 1, "is: expected 1 call, got %d", st.hello_count);
+	free_test_state(&st);
+	SS_program_free(&p);
+
+	/* gt, gte, lt, lte */
+	const char *src_cmp =
+		"script Entry:\n"
+		"\tif 5 gt 3:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 3 gt 5:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 5 gte 5:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 3 lt 5:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 5 lt 3:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 5 lte 5:\n"
+		"\t\tHelloWorld()\n";
+	ASSERT(SS_program_init(&p, src_cmp) == 0, "Init failed (cmp)");
+	memset(&st, 0, sizeof(st));
+	rc = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(rc == 0, "Run failed (cmp)");
+	/* 5>3=yes, 3>5=no, 5>=5=yes, 3<5=yes, 5<3=no, 5<=5=yes → 4 calls */
+	ASSERT(st.hello_count == 4, "cmp: expected 4 calls, got %d", st.hello_count);
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
+static void test_eval_comparator_string_is(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tif `hello` is `hello`:\n"
+		"\t\tHelloWorld()\n"
+		"\tif `hello` is `world`:\n"
+		"\t\tHelloWorld()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int rc = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(rc == 0, "Run failed");
+	ASSERT(st.hello_count == 1, "string is: expected 1 call, got %d", st.hello_count);
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
+static void test_eval_comparator_with_calls(void) {
+	/* Comparators should work with call return values via context API */
+	const char *src =
+		"script Entry:\n"
+		"\tif GetLevel() gte 5:\n"
+		"\t\tDialog(`high level`)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	SS_context *ctx = SS_context_create(&p, "Entry");
+	ASSERT(ctx != NULL, "Context create failed");
+
+	/* GetLevel() call */
+	SS_status s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL, "Expected CALL for GetLevel");
+	ASSERT(strcmp(SS_context_get_call(ctx)->name, "GetLevel") == 0, "Expected GetLevel");
+	SS_context_set_result(ctx, SS_number_value(10));
+
+	/* Dialog call in the true branch */
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
+	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
+	SS_context_set_result(ctx, SS_nil_value());
+
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+	SS_context_free(ctx);
+	SS_program_free(&p);
+}
+
+static void test_eval_comparator_combined(void) {
+	/* Comparators combined with and/or */
+	const char *src =
+		"script Entry:\n"
+		"\tif 5 gt 3 and 2 lt 4:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 5 lt 3 or 2 is 2:\n"
+		"\t\tHelloWorld()\n"
+		"\tif 5 lt 3 and 2 is 2:\n"
+		"\t\tHelloWorld()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int rc = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(rc == 0, "Run failed");
+	/* (5>3 && 2<4)=yes, (5<3 || 2==2)=yes, (5<3 && 2==2)=no → 2 calls */
+	ASSERT(st.hello_count == 2, "combined: expected 2 calls, got %d", st.hello_count);
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
 static void test_eval_call_arg_types(void) {
 	const char *src = "script Entry:\n\tHelloWorld(`String`, 1337, 256.01, false)";
 	SS_program p;
@@ -621,6 +731,10 @@ int main(void) {
 	RUN_TEST(test_eval_call);
 	RUN_TEST(test_eval_conditional);
 	RUN_TEST(test_eval_conditional_and_or);
+	RUN_TEST(test_eval_comparators);
+	RUN_TEST(test_eval_comparator_string_is);
+	RUN_TEST(test_eval_comparator_with_calls);
+	RUN_TEST(test_eval_comparator_combined);
 	RUN_TEST(test_eval_call_arg_types);
 
 	/* Context (yield) */

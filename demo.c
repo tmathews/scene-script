@@ -42,13 +42,6 @@ static void give_item(const char *name, int count) {
 	}
 }
 
-static int has_item(const char *name, int need) {
-	for (int i = 0; i < inventory_count; i++)
-		if (strcmp(inventory[i].name, name) == 0)
-			return inventory[i].count >= need;
-	return 0;
-}
-
 /* ── Call handler ───────────────────────────────────────────────────── */
 
 static SS_value handle_call(const SS_call *call) {
@@ -68,11 +61,12 @@ static SS_value handle_call(const SS_call *call) {
 
 	if (strcmp(call->name, "HasItem") == 0) {
 		const char *item = call->args[0].string;
-		int need = (int)call->args[1].number;
-		bool result = has_item(item, need);
-		printf("  [HasItem(\"%s\", %d) → %s]\n", item, need,
-			result ? "true" : "false");
-		return SS_bool_value(result);
+		int count = 0;
+		for (int i = 0; i < inventory_count; i++)
+			if (strcmp(inventory[i].name, item) == 0)
+				count = inventory[i].count;
+		printf("  [HasItem(\"%s\") → %d]\n", item, count);
+		return SS_number_value(count);
 	}
 
 	if (strcmp(call->name, "Dialog") == 0) {

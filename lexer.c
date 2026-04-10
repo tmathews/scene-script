@@ -24,6 +24,16 @@ const char *SS_token_type_str(SS_token_type t) {
 		return "And";
 	case SS_TOK_OR:
 		return "Or";
+	case SS_TOK_IS:
+		return "Is";
+	case SS_TOK_GT:
+		return "Gt";
+	case SS_TOK_GTE:
+		return "Gte";
+	case SS_TOK_LT:
+		return "Lt";
+	case SS_TOK_LTE:
+		return "Lte";
 	case SS_TOK_COMMA:
 		return "Comma";
 	case SS_TOK_COLON:
@@ -70,6 +80,16 @@ static SS_token token_from_string(const char *s, size_t len) {
 		t.type = SS_TOK_AND;
 	} else if (len == 2 && memcmp(s, "or", 2) == 0) {
 		t.type = SS_TOK_OR;
+	} else if (len == 2 && memcmp(s, "is", 2) == 0) {
+		t.type = SS_TOK_IS;
+	} else if (len == 2 && memcmp(s, "gt", 2) == 0) {
+		t.type = SS_TOK_GT;
+	} else if (len == 3 && memcmp(s, "gte", 3) == 0) {
+		t.type = SS_TOK_GTE;
+	} else if (len == 2 && memcmp(s, "lt", 2) == 0) {
+		t.type = SS_TOK_LT;
+	} else if (len == 3 && memcmp(s, "lte", 3) == 0) {
+		t.type = SS_TOK_LTE;
 	} else {
 		char *end;
 		strtod(t.literal, &end);

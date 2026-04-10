@@ -244,6 +244,11 @@ Conditions support `and`, `or`, `not`, and parenthesised grouping.
 | `and`   | Logical AND                          |
 | `or`    | Logical OR                           |
 | `not`   | Logical NOT (prefix)                 |
+| `is`    | Equality (`a is b`)                  |
+| `gt`    | Greater than (`a gt b`)              |
+| `gte`   | Greater than or equal (`a gte b`)    |
+| `lt`    | Less than (`a lt b`)                 |
+| `lte`   | Less than or equal (`a lte b`)       |
 
 ### Comments
 

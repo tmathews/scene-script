@@ -3,7 +3,7 @@ script Entry:
 	if OnMap(1) or OnMap(3): 
 		run TeleportOptions
 	elif OnMap(2):
-		if HasItem(`SecretShopToken`, 1):
+		if HasItem(`SecretShopToken`) gte 1:
 			run ShopOptions
 		else:
 			Dialog(`Way the wind blows...`)

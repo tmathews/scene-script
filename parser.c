@@ -32,12 +32,16 @@ static bool is_prefix_token(const SS_token *t) {
 
 static bool is_infix_token(const SS_token *t) {
 	return t->type == SS_TOK_LPAREN || t->type == SS_TOK_MINUS ||
-	       t->type == SS_TOK_AND || t->type == SS_TOK_OR;
+	       t->type == SS_TOK_AND || t->type == SS_TOK_OR ||
+	       t->type == SS_TOK_IS || t->type == SS_TOK_GT ||
+	       t->type == SS_TOK_GTE || t->type == SS_TOK_LT ||
+	       t->type == SS_TOK_LTE;
 }
 
 enum {
 	SS_PREC_LOWEST,
 	SS_PREC_INFIX,
+	SS_PREC_COMPARE,
 	SS_PREC_SUM,
 	SS_PREC_PREFIX,
 	SS_PREC_CALL,
@@ -48,6 +52,12 @@ static unsigned get_prec(const SS_token *t) {
 	case SS_TOK_AND:
 	case SS_TOK_OR:
 		return SS_PREC_INFIX;
+	case SS_TOK_IS:
+	case SS_TOK_GT:
+	case SS_TOK_GTE:
+	case SS_TOK_LT:
+	case SS_TOK_LTE:
+		return SS_PREC_COMPARE;
 	case SS_TOK_MINUS:
 		return SS_PREC_SUM;
 	case SS_TOK_LPAREN:
