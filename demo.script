@@ -1,13 +1,14 @@
 script Entry:
 	Name(`???`)
-	if OnMap(1) or OnMap(3): 
-		run TeleportOptions
-	elif OnMap(2):
-		if HasItem(`SecretShopToken`) gte 1:
-			run ShopOptions
-		else:
-			Dialog(`Way the wind blows...`)
-			end
+	switch GetMap():
+		case 1, 3:
+			run TeleportOptions
+		case 2:
+			if HasItem(`SecretShopToken`) gte 1:
+				run ShopOptions
+			else:
+				Dialog(`Way the wind blows...`)
+				end
 	Dialog(`Howdy there, fancy seeing you here.`)
 
 script ShopOptions:
@@ -17,9 +18,9 @@ script ShopOptions:
 	OpenShop(`GoothBert`)
 
 script TeleportOptions:
-	Prompt(`Would you like to go to the secret tree?`, `Yes`, `No`)
-	if Answer(1):
-		Dialog(`Away we go!`)
-		Teleport(2, `Entrance`)
-	else:
-		Dialog(`Alright, I'll be here any time.`)
+	switch Prompt(`Would you like to go to the secret tree?`, `Yes`, `No`):
+		case `Yes`:
+			Dialog(`Away we go!`)
+			Teleport(2, `Entrance`)
+		case `No`:
+			Dialog(`Alright, I'll be here any time.`)

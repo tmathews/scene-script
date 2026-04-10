@@ -230,25 +230,41 @@ else:
 
 Conditions support `and`, `or`, `not`, and parenthesised grouping.
 
+### Switch / Case
+
+Use `switch` to match a value against multiple cases. Cases can have
+comma-separated values. There is no default or fallthrough — execution
+continues after the switch if nothing matches.
+
+```
+switch GetMap():
+    case 1, 2:
+        Dialog(`You are in the forest.`)
+    case `town`:
+        Dialog(`Welcome to town!`)
+```
+
 ### Keywords
 
-| Keyword | Description                          |
-|---------|--------------------------------------|
-| `if`    | Conditional branch                   |
-| `elif`  | Else-if branch                       |
-| `else`  | Else branch                          |
-| `run`   | Jump to another script               |
-| `end`   | Stop execution of the current branch |
-| `true`  | Boolean literal                      |
-| `false` | Boolean literal                      |
-| `and`   | Logical AND                          |
-| `or`    | Logical OR                           |
-| `not`   | Logical NOT (prefix)                 |
-| `is`    | Equality (`a is b`)                  |
-| `gt`    | Greater than (`a gt b`)              |
-| `gte`   | Greater than or equal (`a gte b`)    |
-| `lt`    | Less than (`a lt b`)                 |
-| `lte`   | Less than or equal (`a lte b`)       |
+| Keyword  | Description                          |
+|----------|--------------------------------------|
+| `if`     | Conditional branch                   |
+| `elif`   | Else-if branch                       |
+| `else`   | Else branch                          |
+| `switch` | Switch on a value                    |
+| `case`   | Match arm inside a switch            |
+| `run`    | Jump to another script               |
+| `end`    | Stop execution of the current branch |
+| `true`   | Boolean literal                      |
+| `false`  | Boolean literal                      |
+| `and`    | Logical AND                          |
+| `or`     | Logical OR                           |
+| `not`    | Logical NOT (prefix)                 |
+| `is`     | Equality (`a is b`)                  |
+| `gt`     | Greater than (`a gt b`)              |
+| `gte`    | Greater than or equal (`a gte b`)    |
+| `lt`     | Less than (`a lt b`)                 |
+| `lte`    | Less than or equal (`a lte b`)       |
 
 ### Comments
 

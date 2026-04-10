@@ -85,6 +85,8 @@ typedef enum {
 	SS_KEY_EQ,
 	SS_KEY_TRUE,
 	SS_KEY_FALSE,
+	SS_KEY_SWITCH,
+	SS_KEY_CASE,
 } SS_keyword;
 
 typedef enum {
@@ -95,6 +97,8 @@ typedef enum {
 	SS_STMT_IF,
 	SS_STMT_ELIF,
 	SS_STMT_ELSE,
+	SS_STMT_SWITCH,
+	SS_STMT_CASE,
 } SS_stmt_type;
 
 typedef enum {
@@ -106,6 +110,7 @@ typedef enum {
 	SS_EXP_PREFIX,
 	SS_EXP_INFIX,
 	SS_EXP_CALL,
+	SS_EXP_LIST,
 } SS_exp_type;
 
 typedef struct SS_expression {

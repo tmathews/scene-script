@@ -18,7 +18,6 @@
 
 static int current_map = 1;
 static char npc_name[64] = "NPC";
-static int last_answer = 0;
 
 typedef struct {
 	char name[64];
@@ -51,12 +50,9 @@ static SS_value handle_call(const SS_call *call) {
 		return SS_nil_value();
 	}
 
-	if (strcmp(call->name, "OnMap") == 0) {
-		int map = (int)call->args[0].number;
-		bool result = (current_map == map);
-		printf("  [OnMap(%d) → %s  (you are on map %d)]\n", map,
-			result ? "true" : "false", current_map);
-		return SS_bool_value(result);
+	if (strcmp(call->name, "GetMap") == 0) {
+		printf("  [GetMap() → %d]\n", current_map);
+		return SS_number_value(current_map);
 	}
 
 	if (strcmp(call->name, "HasItem") == 0) {
@@ -82,21 +78,31 @@ static SS_value handle_call(const SS_call *call) {
 		for (size_t i = 1; i < call->args_len; i++)
 			printf("    %zu) %s\n", i, call->args[i].string);
 		printf("  Your choice: ");
+		char input[128];
+		if (!fgets(input, sizeof(input), stdin))
+			input[0] = '\0';
+		/* Strip trailing newline */
+		size_t ilen = strlen(input);
+		if (ilen > 0 && input[ilen - 1] == '\n')
+			input[ilen - 1] = '\0';
+		/* Try matching by number first, then by text */
 		int choice = 0;
-		if (scanf("%d", &choice) != 1)
-			choice = 1;
-		while (getchar() != '\n') {
+		char *end;
+		long num = strtol(input, &end, 10);
+		if (*end == '\0' && num >= 1 && (size_t)num < call->args_len) {
+			choice = (int)num;
+		} else {
+			for (size_t i = 1; i < call->args_len; i++) {
+				if (strcmp(input, call->args[i].string) == 0) {
+					choice = (int)i;
+					break;
+				}
+			}
 		}
-		last_answer = choice;
-		printf("  [Answer set to %d]\n", last_answer);
-		return SS_nil_value();
-	}
-
-	if (strcmp(call->name, "Answer") == 0) {
-		int n = (int)call->args[0].number;
-		bool result = (last_answer == n);
-		printf("  [Answer(%d) → %s]\n", n, result ? "true" : "false");
-		return SS_bool_value(result);
+		if (choice < 1 || (size_t)choice >= call->args_len)
+			choice = 1;
+		printf("  [Selected \"%s\"]\n", call->args[choice].string);
+		return SS_string_value(call->args[choice].string);
 	}
 
 	if (strcmp(call->name, "Teleport") == 0) {

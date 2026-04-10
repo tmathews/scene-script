@@ -697,6 +697,130 @@ static void test_context_deferred_resume(void) {
 	SS_program_free(&p);
 }
 
+/* ── Switch tests ───────────────────────────────────────────────────── */
+
+static void test_parse_switch(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tswitch 1:\n"
+		"\t\tcase 1, 2:\n"
+		"\t\t\tDialog(`one or two`)\n"
+		"\t\tcase 3:\n"
+		"\t\t\tDialog(`three`)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	ASSERT(p.scripts_len == 1, "Expected 1 script");
+
+	const SS_block *blk = &p.scripts[0].block;
+	ASSERT(blk->stmts_len == 1, "Expected 1 statement (switch)");
+	ASSERT(blk->stmts[0].type == SS_STMT_SWITCH, "Expected SWITCH");
+
+	const SS_block *cases = blk->stmts[0].block;
+	ASSERT(cases->stmts_len == 2, "Expected 2 cases");
+	ASSERT(cases->stmts[0].type == SS_STMT_CASE, "Case 0 type");
+	ASSERT(cases->stmts[1].type == SS_STMT_CASE, "Case 1 type");
+
+	/* First case has 2 match values */
+	ASSERT(cases->stmts[0].expression->type == SS_EXP_LIST, "Case 0 expr type");
+	ASSERT(cases->stmts[0].expression->children_len == 2, "Case 0 has 2 values");
+
+	/* Second case has 1 match value */
+	ASSERT(cases->stmts[1].expression->children_len == 1, "Case 1 has 1 value");
+
+	SS_program_free(&p);
+}
+
+static void test_eval_switch(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tswitch 2:\n"
+		"\t\tcase 1:\n"
+		"\t\t\tA()\n"
+		"\t\tcase 2, 3:\n"
+		"\t\t\tB()\n"
+		"\t\tcase 4:\n"
+		"\t\t\tC()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int result = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(result == 0, "Run failed");
+	ASSERT(strcmp(st.last_call.name, "B") == 0, "Expected B, got %s", st.last_call.name);
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
+static void test_eval_switch_no_match(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tswitch 99:\n"
+		"\t\tcase 1:\n"
+		"\t\t\tA()\n"
+		"\t\tcase 2:\n"
+		"\t\t\tB()\n"
+		"\tDialog(`after`)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int result = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(result == 0, "Run failed");
+	ASSERT(strcmp(st.last_call.name, "Dialog") == 0, "Expected Dialog");
+	ASSERT(strcmp(st.last_args[0].string, "after") == 0, "Expected 'after'");
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
+static void test_eval_switch_string(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tswitch `hello`:\n"
+		"\t\tcase `world`:\n"
+		"\t\t\tA()\n"
+		"\t\tcase `hello`, `hi`:\n"
+		"\t\t\tB()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int result = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(result == 0, "Run failed");
+	ASSERT(strcmp(st.last_call.name, "B") == 0, "Expected B");
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
+static void test_context_switch(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tswitch GetMap():\n"
+		"\t\tcase 1:\n"
+		"\t\t\tDialog(`map one`)\n"
+		"\t\tcase 2:\n"
+		"\t\t\tDialog(`map two`)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	SS_context *ctx = SS_context_create(&p, "Entry");
+
+	/* First yield: GetMap() call */
+	SS_status s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL, "Expected CALL for GetMap");
+	ASSERT(strcmp(SS_context_get_call(ctx)->name, "GetMap") == 0, "Expected GetMap");
+	SS_context_set_result(ctx, SS_number_value(2));
+
+	/* Second yield: Dialog call from matched case */
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
+	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
+	ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, "map two") == 0,
+		"Expected 'map two'");
+	SS_context_set_result(ctx, SS_nil_value());
+
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+	SS_context_free(ctx);
+	SS_program_free(&p);
+}
+
 /* ── main ───────────────────────────────────────────────────────────── */
 
 int main(void) {
@@ -745,6 +869,13 @@ int main(void) {
 	RUN_TEST(test_context_run_keyword);
 	RUN_TEST(test_context_end_keyword);
 	RUN_TEST(test_context_deferred_resume);
+
+	/* Switch */
+	RUN_TEST(test_parse_switch);
+	RUN_TEST(test_eval_switch);
+	RUN_TEST(test_eval_switch_no_match);
+	RUN_TEST(test_eval_switch_string);
+	RUN_TEST(test_context_switch);
 
 	printf("\n%d tests run, %d passed, %d failed\n\n", tests_run, tests_passed, tests_failed);
 	return tests_failed > 0 ? 1 : 0;

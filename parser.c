@@ -23,6 +23,10 @@ SS_keyword SS_literal_to_keyword(const char *s) {
 		return SS_KEY_TRUE;
 	if (strcmp(s, "false") == 0)
 		return SS_KEY_FALSE;
+	if (strcmp(s, "switch") == 0)
+		return SS_KEY_SWITCH;
+	if (strcmp(s, "case") == 0)
+		return SS_KEY_CASE;
 	return SS_KEY_INVALID;
 }
 
@@ -334,6 +338,18 @@ static int parse_conditional(const SS_token *tokens, size_t len, size_t *i,
 	return 0;
 }
 
+static int parse_switch(const SS_token *tokens, size_t len, size_t *i,
+	unsigned indent, SS_statement *out) {
+	out->type = SS_STMT_SWITCH;
+	(*i)++; /* past 'switch' */
+	if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &out->expression) != 0)
+		return -1;
+	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
+		return -1;
+	out->block = calloc(1, sizeof(SS_block));
+	return parse_block(tokens, len, i, indent, out->block);
+}
+
 static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	memset(out, 0, sizeof(*out));
@@ -351,6 +367,36 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 	case SS_KEY_IF:
 		rc = parse_conditional(tokens, len, i, indent, out);
 		break;
+	case SS_KEY_SWITCH:
+		rc = parse_switch(tokens, len, i, indent, out);
+		break;
+	case SS_KEY_CASE: {
+		out->type = SS_STMT_CASE;
+		(*i)++; /* past 'case' */
+		/* Parse comma-separated match values into an EXP_LIST */
+		SS_expression *list = calloc(1, sizeof(SS_expression));
+		list->type = SS_EXP_LIST;
+		while (1) {
+			SS_expression *val = NULL;
+			if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &val) != 0) {
+				exp_free(list); free(list);
+				return -1;
+			}
+			exp_add_child(list, val);
+			if (*i < len && tokens[*i].type == SS_TOK_COMMA) {
+				(*i)++; /* past comma */
+			} else {
+				break;
+			}
+		}
+		out->expression = list;
+		if (*i >= len || tokens[*i].type != SS_TOK_COLON) {
+			return -1;
+		}
+		out->block = calloc(1, sizeof(SS_block));
+		rc = parse_block(tokens, len, i, indent, out->block);
+		break;
+	}
 	case SS_KEY_RUN:
 		out->type = SS_STMT_RUN;
 		(*i)++;
@@ -483,6 +529,17 @@ int SS_sprint_expression(const SS_expression *e, char *buf, size_t len) {
 		n += snprintf(buf ? buf + n : NULL, len > (size_t)n ? len - n : 0, ")");
 		return n;
 	}
+	case SS_EXP_LIST: {
+		int n = snprintf(buf, len, "[");
+		for (size_t i = 0; i < e->children_len; i++) {
+			if (i > 0)
+				n += snprintf(buf ? buf + n : NULL, len > (size_t)n ? len - n : 0, ", ");
+			n += SS_sprint_expression(e->children[i], buf ? buf + n : NULL,
+				len > (size_t)n ? len - n : 0);
+		}
+		n += snprintf(buf ? buf + n : NULL, len > (size_t)n ? len - n : 0, "]");
+		return n;
+	}
 	default:
 		return snprintf(buf, len, "Unknown Expression(%d:%s)", e->type,
 			e->value ? e->value : "");
@@ -524,6 +581,16 @@ static void print_statement(const SS_statement *s, unsigned indent) {
 	case SS_STMT_EXPRESSION:
 		SS_sprint_expression(s->expression, expbuf, sizeof(expbuf));
 		printf("%s\n", expbuf);
+		break;
+	case SS_STMT_SWITCH:
+		SS_sprint_expression(s->expression, expbuf, sizeof(expbuf));
+		printf("switch %s:\n", expbuf);
+		print_block(s->block, indent);
+		break;
+	case SS_STMT_CASE:
+		SS_sprint_expression(s->expression, expbuf, sizeof(expbuf));
+		printf("case %s:\n", expbuf);
+		print_block(s->block, indent);
 		break;
 	case SS_STMT_INVALID:
 		printf("Invalid Statement\n");

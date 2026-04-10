@@ -71,7 +71,8 @@ int SS_value_sprint(const SS_value *v, char *buf, size_t len) {
 
 typedef enum { FRAME_BLOCK,
 	FRAME_COND,
-	FRAME_EXPR } frame_type;
+	FRAME_EXPR,
+	FRAME_SWITCH } frame_type;
 
 enum {
 	COND_EVAL_MAIN = 0,
@@ -103,6 +104,12 @@ typedef struct {
 			SS_value left;
 			bool has_left;
 		} expr;
+		struct {
+			const SS_statement *stmt;
+			int phase;
+			SS_value switch_val;
+			bool has_val;
+		} sw;
 	};
 } frame;
 
@@ -118,17 +125,22 @@ struct SS_context {
 };
 
 static void frame_cleanup(frame *f) {
-	if (f->type != FRAME_EXPR)
-		return;
-	if (f->expr.args) {
-		for (size_t i = 0; i < f->expr.args_done; i++)
-			SS_value_free(&f->expr.args[i]);
-		free(f->expr.args);
-		f->expr.args = NULL;
-	}
-	if (f->expr.has_left) {
-		SS_value_free(&f->expr.left);
-		f->expr.has_left = false;
+	if (f->type == FRAME_EXPR) {
+		if (f->expr.args) {
+			for (size_t i = 0; i < f->expr.args_done; i++)
+				SS_value_free(&f->expr.args[i]);
+			free(f->expr.args);
+			f->expr.args = NULL;
+		}
+		if (f->expr.has_left) {
+			SS_value_free(&f->expr.left);
+			f->expr.has_left = false;
+		}
+	} else if (f->type == FRAME_SWITCH) {
+		if (f->sw.has_val) {
+			SS_value_free(&f->sw.switch_val);
+			f->sw.has_val = false;
+		}
 	}
 }
 
@@ -417,6 +429,70 @@ static int step_expr(SS_context *ctx) {
 	}
 }
 
+static bool values_equal(const SS_value *a, const SS_value *b) {
+	if (a->type != b->type)
+		return false;
+	switch (a->type) {
+	case SS_VAL_NIL:
+		return true;
+	case SS_VAL_BOOL:
+		return a->boolean == b->boolean;
+	case SS_VAL_NUMBER:
+		return a->number == b->number;
+	case SS_VAL_STRING:
+		return strcmp(a->string, b->string) == 0;
+	}
+	return false;
+}
+
+/* Process the top SWITCH frame. Returns 0=continue, 1=yield, -1=error. */
+static int step_switch(SS_context *ctx) {
+	frame *f = &ctx->stack[ctx->stack_len - 1];
+
+	switch (f->sw.phase) {
+	case 0: /* evaluate switch expression */
+		f->sw.phase = 1;
+		push_expr_frame(ctx, f->sw.stmt->expression);
+		return 0;
+
+	case 1: { /* match against cases */
+		f->sw.switch_val = ctx->result;
+		f->sw.has_val = true;
+		ctx->result = SS_nil_value();
+
+		const SS_block *blk = f->sw.stmt->block;
+		for (size_t ci = 0; ci < blk->stmts_len; ci++) {
+			const SS_statement *cs = &blk->stmts[ci];
+			if (cs->type != SS_STMT_CASE)
+				continue;
+			const SS_expression *list = cs->expression;
+			for (size_t vi = 0; vi < list->children_len; vi++) {
+				SS_value match_val;
+				if (resolve_leaf(ctx, list->children[vi], &match_val) != 0)
+					return -1;
+				bool eq = values_equal(&f->sw.switch_val, &match_val);
+				SS_value_free(&match_val);
+				if (eq) {
+					f->sw.phase = 2;
+					push_block_frame(ctx, cs->block);
+					return 0;
+				}
+			}
+		}
+		/* no match */
+		pop_frame(ctx);
+		return 0;
+	}
+
+	case 2: /* case body done */
+		pop_frame(ctx);
+		return 0;
+
+	default:
+		return -1;
+	}
+}
+
 /* Process the top BLOCK frame. Returns 0=continue, 1=yield, -1=error. */
 static int step_block(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
@@ -459,6 +535,16 @@ static int step_block(SS_context *ctx) {
 		f->block.awaiting = true;
 		push_cond_frame(ctx, stmt);
 		return 0;
+	case SS_STMT_SWITCH: {
+		f->block.awaiting = true;
+		frame sf = {0};
+		sf.type = FRAME_SWITCH;
+		sf.sw.stmt = stmt;
+		sf.sw.phase = 0;
+		sf.sw.has_val = false;
+		push_frame(ctx, sf);
+		return 0;
+	}
 	default:
 		return -1;
 	}
@@ -569,6 +655,9 @@ SS_status SS_context_step(SS_context *ctx) {
 			break;
 		case FRAME_EXPR:
 			rc = step_expr(ctx);
+			break;
+		case FRAME_SWITCH:
+			rc = step_switch(ctx);
 			break;
 		default:
 			rc = -1;
