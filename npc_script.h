@@ -175,4 +175,29 @@ const SS_value *SS_program_get_global(const SS_program *p, const char *name);
 int SS_program_run(SS_program *p, const char *name,
                     SS_call_fn fn, void *userdata);
 
+/* ── Context (yield-based execution) ───────────────────────────────── */
+
+typedef enum {
+    SS_STATUS_DONE,
+    SS_STATUS_CALL,
+    SS_STATUS_ERROR,
+} SS_status;
+
+typedef struct SS_context SS_context;
+
+/* Create a run context for a named script. Returns NULL on error. */
+SS_context *SS_context_create(SS_program *p, const char *script_name);
+
+/* Advance execution until the next call or completion. */
+SS_status SS_context_step(SS_context *ctx);
+
+/* When step returns SS_STATUS_CALL, get the pending call info. */
+const SS_call *SS_context_get_call(const SS_context *ctx);
+
+/* Provide the result for the pending call, then call step again. */
+void SS_context_set_result(SS_context *ctx, SS_value result);
+
+/* Free the context and all internal state. */
+void SS_context_free(SS_context *ctx);
+
 #endif /* SCENE_SCRIPT_H */

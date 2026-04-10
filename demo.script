@@ -13,7 +13,7 @@ script Entry:
 script ShopOptions:
 	# TODO I can't figure out a good name, figure it out
 	Name(`GoothBert`)
-	Dialog(`Ah I see you have a ${Item:SecretShopToken}, fancy some of my warez will ya.`)
+	Dialog(`Ah I see you have the Secret Shop Token! Fancy some of my warez will ya?`)
 	OpenShop(`GoothBert`)
 
 script TeleportOptions:

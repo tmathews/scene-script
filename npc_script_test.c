@@ -336,6 +336,227 @@ static void test_eval_call_arg_types(void) {
     SS_program_free(&p);
 }
 
+/* ── Context (yield) tests ──────────────────────────────────────────── */
+
+static void test_context_basic(void) {
+    /* A script with one call should yield once, then finish. */
+    const char *src = "script Entry:\n\tDialog(`hello`)";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+    ASSERT(ctx != NULL, "Context create failed");
+
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL, "Expected CALL, got %d", s);
+    const SS_call *call = SS_context_get_call(ctx);
+    ASSERT(strcmp(call->name, "Dialog") == 0, "Expected Dialog, got %s", call->name);
+    ASSERT(call->args_len == 1, "Expected 1 arg");
+    ASSERT(call->args[0].type == SS_VAL_STRING, "Arg should be string");
+    ASSERT(strcmp(call->args[0].string, "hello") == 0, "Arg value mismatch");
+
+    SS_context_set_result(ctx, SS_nil_value());
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE, got %d", s);
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
+static void test_context_multi_calls(void) {
+    /* Multiple sequential calls yield one at a time. */
+    const char *src =
+        "script Entry:\n"
+        "\tA()\n"
+        "\tB()\n"
+        "\tC()\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+
+    const char *expected[] = { "A", "B", "C" };
+    for (int i = 0; i < 3; i++) {
+        SS_status s = SS_context_step(ctx);
+        ASSERT(s == SS_STATUS_CALL, "Call %d: expected CALL", i);
+        ASSERT(strcmp(SS_context_get_call(ctx)->name, expected[i]) == 0,
+               "Call %d: expected %s", i, expected[i]);
+        SS_context_set_result(ctx, SS_nil_value());
+    }
+
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
+static void test_context_conditional_call(void) {
+    /* Call inside a conditional should yield. */
+    const char *src =
+        "script Entry:\n"
+        "\tif HasItem(`key`):\n"
+        "\t\tDialog(`unlocked`)\n"
+        "\telse:\n"
+        "\t\tDialog(`locked`)\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+
+    /* First yield: HasItem call in the condition */
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL, "Expected CALL for HasItem");
+    ASSERT(strcmp(SS_context_get_call(ctx)->name, "HasItem") == 0, "Expected HasItem");
+    SS_context_set_result(ctx, SS_bool_value(true));
+
+    /* Second yield: Dialog in the true branch */
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
+    ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
+    ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, "unlocked") == 0, "Expected unlocked");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+    SS_context_free(ctx);
+
+    /* Now test the false branch */
+    ctx = SS_context_create(&p, "Entry");
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL, "Expected CALL for HasItem (2nd run)");
+    SS_context_set_result(ctx, SS_bool_value(false));
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog (else)");
+    ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, "locked") == 0, "Expected locked");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE (2nd run)");
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
+static void test_context_and_or_calls(void) {
+    /* Calls inside and/or expressions should yield, with short-circuit. */
+    const char *src =
+        "script Entry:\n"
+        "\tif A() and B():\n"
+        "\t\tC()\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+
+    /* Test 1: A() returns true → B() is evaluated → B() returns true → C() executes */
+    SS_context *ctx = SS_context_create(&p, "Entry");
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
+    SS_context_set_result(ctx, SS_bool_value(true));
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "B") == 0, "Expected B");
+    SS_context_set_result(ctx, SS_bool_value(true));
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "C") == 0, "Expected C");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+    SS_context_free(ctx);
+
+    /* Test 2: A() returns false → short-circuit, B() not called, C() not called */
+    ctx = SS_context_create(&p, "Entry");
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A (2)");
+    SS_context_set_result(ctx, SS_bool_value(false));
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE after short-circuit");
+    SS_context_free(ctx);
+
+    SS_program_free(&p);
+}
+
+static void test_context_run_keyword(void) {
+    /* The 'run' keyword should switch to another script. */
+    const char *src =
+        "script Entry:\n"
+        "\tA()\n"
+        "\trun Other\n"
+        "\tB()\n"
+        "\nscript Other:\n"
+        "\tC()\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    /* After 'run Other', B() is skipped, C() is called */
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "C") == 0, "Expected C, not B");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
+static void test_context_end_keyword(void) {
+    /* The 'end' keyword should stop execution immediately. */
+    const char *src =
+        "script Entry:\n"
+        "\tA()\n"
+        "\tend\n"
+        "\tB()\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
+    SS_context_set_result(ctx, SS_nil_value());
+
+    /* end → DONE, B() never called */
+    s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE after end");
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
+static void test_context_deferred_resume(void) {
+    /* Simulate saving and resuming context across "frames" (game loop style). */
+    const char *src =
+        "script Entry:\n"
+        "\tDialog(`line 1`)\n"
+        "\tDialog(`line 2`)\n"
+        "\tDialog(`line 3`)\n";
+    SS_program p;
+    ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+    SS_context *ctx = SS_context_create(&p, "Entry");
+
+    const char *expected[] = { "line 1", "line 2", "line 3" };
+    for (int i = 0; i < 3; i++) {
+        SS_status s = SS_context_step(ctx);
+        ASSERT(s == SS_STATUS_CALL, "Frame %d: expected CALL", i);
+        ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, expected[i]) == 0,
+               "Frame %d: expected '%s'", i, expected[i]);
+        /* Simulate deferred resume — context is held, result provided later */
+        SS_context_set_result(ctx, SS_nil_value());
+    }
+
+    SS_status s = SS_context_step(ctx);
+    ASSERT(s == SS_STATUS_DONE, "Expected DONE after all dialogs");
+
+    SS_context_free(ctx);
+    SS_program_free(&p);
+}
+
 /* ── main ───────────────────────────────────────────────────────────── */
 
 int main(void) {
@@ -371,6 +592,15 @@ int main(void) {
     RUN_TEST(test_eval_conditional);
     RUN_TEST(test_eval_conditional_and_or);
     RUN_TEST(test_eval_call_arg_types);
+
+    /* Context (yield) */
+    RUN_TEST(test_context_basic);
+    RUN_TEST(test_context_multi_calls);
+    RUN_TEST(test_context_conditional_call);
+    RUN_TEST(test_context_and_or_calls);
+    RUN_TEST(test_context_run_keyword);
+    RUN_TEST(test_context_end_keyword);
+    RUN_TEST(test_context_deferred_resume);
 
     printf("\n%d tests run, %d passed, %d failed\n\n", tests_run, tests_passed, tests_failed);
     return tests_failed > 0 ? 1 : 0;
