@@ -26,7 +26,7 @@ file, directory, network, or however you like — just pass the source text to
 ## Building
 
 ```sh
-make          # builds libnpc_script.a
+make          # builds libscene_script.a
 make test     # builds and runs the test suite
 make demo     # builds the interactive demo app
 make clean
@@ -41,7 +41,7 @@ Requires a C11 compiler and `make`.
 The simplest way to run a script — provide a callback that handles every call:
 
 ```c
-#include "npc_script.h"
+#include "scene_script.h"
 #include <stdio.h>
 
 int my_handler(const SS_call *call, SS_value *result, void *userdata) {
@@ -73,7 +73,7 @@ For games where you need to pause mid-script (e.g. wait for animated dialog to
 finish), use the context API. Each call yields control back to you:
 
 ```c
-#include "npc_script.h"
+#include "scene_script.h"
 #include <stdio.h>
 
 int main(void) {

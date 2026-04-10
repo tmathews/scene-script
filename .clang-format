@@ -1,0 +1,26 @@
+BasedOnStyle: LLVM
+UseTab: AlignWithSpaces
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 0
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+IndentCaseLabels: false
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveAssignments:
+  Enabled: false
+  AcrossEmptyLines: false
+  AcrossComments: false
+InsertNewlineAtEOF: false
+InsertTrailingCommas: None
+FixNamespaceComments: false
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: "^<[A-z0-9_]+>$"
+    Priority: 1
+  - Regex: "^<.*"
+    Priority: 2
+  - Regex: '^".*'
+    Priority: 3

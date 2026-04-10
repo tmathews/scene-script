@@ -2,9 +2,11 @@ CC      ?= gcc
 CFLAGS  ?= -Wall -Wextra -std=c11 -g
 AR      ?= ar
 
-LIB     = libnpc_script.a
-OBJS    = npc_script.o
-TEST    = npc_script_test
+HDRS    = scene_script.h internal.h
+SRCS    = lexer.c parser.c eval.c
+LIB     = libscene_script.a
+OBJS    = lexer.o parser.o eval.o
+TEST    = tests
 DEMO    = demo
 
 .PHONY: all clean test
@@ -14,14 +16,14 @@ all: $(LIB)
 $(LIB): $(OBJS)
 	$(AR) rcs $@ $^
 
-npc_script.o: npc_script.c npc_script.h
+%.o: %.c $(HDRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(TEST): npc_script_test.c npc_script.c npc_script.h
-	$(CC) $(CFLAGS) -o $@ npc_script_test.c npc_script.c -lm
+$(TEST): tests.c $(SRCS) $(HDRS)
+	$(CC) $(CFLAGS) -o $@ tests.c $(SRCS) -lm
 
-$(DEMO): demo.c npc_script.c npc_script.h
-	$(CC) $(CFLAGS) -o $@ demo.c npc_script.c -lm
+$(DEMO): demo.c $(SRCS) $(HDRS)
+	$(CC) $(CFLAGS) -o $@ demo.c $(SRCS) -lm
 
 test: $(TEST)
 	./$(TEST)
