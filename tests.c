@@ -821,6 +821,32 @@ static void test_context_switch(void) {
 	SS_program_free(&p);
 }
 
+static void test_context_namespaced_run(void) {
+	const char *src =
+		"script Entry:\n"
+		"\tA()\n"
+		"\trun NPC.Greet\n"
+		"\nscript NPC.Greet:\n"
+		"\tB()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	SS_context *ctx = SS_context_create(&p, "Entry");
+
+	SS_status s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
+	SS_context_set_result(ctx, SS_nil_value());
+
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "B") == 0, "Expected B");
+	SS_context_set_result(ctx, SS_nil_value());
+
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+	SS_context_free(ctx);
+	SS_program_free(&p);
+}
+
 /* ── main ───────────────────────────────────────────────────────────── */
 
 int main(void) {
@@ -876,6 +902,7 @@ int main(void) {
 	RUN_TEST(test_eval_switch_no_match);
 	RUN_TEST(test_eval_switch_string);
 	RUN_TEST(test_context_switch);
+	RUN_TEST(test_context_namespaced_run);
 
 	printf("\n%d tests run, %d passed, %d failed\n\n", tests_run, tests_passed, tests_failed);
 	return tests_failed > 0 ? 1 : 0;

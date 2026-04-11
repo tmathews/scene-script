@@ -196,15 +196,22 @@ source.
 
 ### Scripts
 
-A source file contains one or more named scripts:
+A source file contains one or more named scripts. Use dot notation to
+namespace scripts by category (e.g. NPC name):
 
 ```
 script Entry:
     Dialog(`Hello!`)
 
-script Goodbye:
-    Dialog(`See you later.`)
+script Goofbert.Greet:
+    Dialog(`Well hello there!`)
+
+script Goofbert.Shop:
+    Dialog(`Fancy some warez?`)
 ```
+
+Namespaced names work everywhere a script name is used, including `run`
+and `SS_context_create`.
 
 ### Data Types
 

@@ -1,23 +1,25 @@
+# This is an example script used in our demo game. It showcases all
+# functionality of SceneScript.
+
 script Entry:
 	Name(`???`)
 	switch GetMap():
 		case 1, 3:
-			run TeleportOptions
+			run Goofbert.TeleportOptions
 		case 2:
 			if HasItem(`SecretShopToken`) gte 1:
-				run ShopOptions
+				run Goofbert.ShopOptions
 			else:
 				Dialog(`Way the wind blows...`)
 				end
 	Dialog(`Howdy there, fancy seeing you here.`)
 
-script ShopOptions:
-	# TODO I can't figure out a good name, figure it out
-	Name(`GoothBert`)
+script Goofbert.ShopOptions:
+	Name(`GoofBert`)
 	Dialog(`Ah I see you have the Secret Shop Token! Fancy some of my warez will ya?`)
-	OpenShop(`GoothBert`)
+	OpenShop(`GoofBert`)
 
-script TeleportOptions:
+script Goofbert.TeleportOptions:
 	switch Prompt(`Would you like to go to the secret tree?`, `Yes`, `No`):
 		case `Yes`:
 			Dialog(`Away we go!`)
