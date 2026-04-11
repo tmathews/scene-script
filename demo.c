@@ -100,7 +100,7 @@ static SS_value handle_call(const SS_call *call) {
 			}
 		}
 		if (choice < 1 || (size_t)choice >= call->args_len)
-			choice = 1;
+			choice = (int)call->args_len - 1;
 		printf("  [Selected \"%s\"]\n", call->args[choice].string);
 		return SS_string_value(call->args[choice].string);
 	}
