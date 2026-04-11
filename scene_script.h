@@ -67,7 +67,7 @@ typedef struct {
 
 const char *SS_token_type_str(SS_token_type t);
 
-/* Lexer: tokenise a source string. Caller must free *out with SS_tokens_free. */
+// Lexer: tokenise a source string. Caller must free *out with SS_tokens_free.
 int SS_lex(const char *src, SS_token **out, size_t *out_len);
 void SS_tokens_free(SS_token *tokens, size_t len);
 
@@ -150,8 +150,8 @@ typedef struct {
 
 SS_keyword SS_literal_to_keyword(const char *s);
 
-/* Parse an array of tokens into scripts and constants.
-   Caller must free with SS_scripts_free / SS_constants_free. */
+// Parse an array of tokens into scripts and constants.
+// Caller must free with SS_scripts_free / SS_constants_free.
 int SS_parse(const SS_token *tokens, size_t tokens_len,
 	SS_script **out, size_t *out_len,
 	SS_constant **constants_out, size_t *constants_len);
@@ -175,8 +175,8 @@ typedef struct {
 	size_t args_len;
 } SS_call;
 
-/* Callback invoked when a script calls an external function.
-   Return 0 on success (write result into *result), non-zero on error. */
+// Callback invoked when a script calls an external function.
+// Return 0 on success (write result into *result), non-zero on error.
 typedef int (*SS_call_fn)(const SS_call *call, SS_value *result, void *userdata);
 
 typedef struct {
@@ -187,15 +187,15 @@ typedef struct {
 	size_t constants_cap;
 } SS_program;
 
-/* Initialise a program from source text. Returns 0 on success. */
+// Initialise a program from source text. Returns 0 on success.
 int SS_program_init(SS_program *p, const char *src);
 void SS_program_free(SS_program *p);
 
-/* Set / get constants (also used for script-defined constants). */
+// Set / get constants (also used for script-defined constants).
 void SS_program_set_constant(SS_program *p, const char *name, SS_value v);
 const SS_value *SS_program_get_constant(const SS_program *p, const char *name);
 
-/* Run a named script synchronously. Returns 0 on success. */
+// Run a named script synchronously. Returns 0 on success.
 int SS_program_run(SS_program *p, const char *name,
 	SS_call_fn fn, void *userdata);
 
@@ -211,19 +211,19 @@ typedef enum {
 
 typedef struct SS_context SS_context;
 
-/* Create a run context for a named script. Returns NULL on error. */
+// Create a run context for a named script. Returns NULL on error.
 SS_context *SS_context_create(SS_program *p, const char *script_name);
 
-/* Advance execution until the next call or completion. */
+// Advance execution until the next call or completion.
 SS_status SS_context_step(SS_context *ctx);
 
-/* When step returns SS_STATUS_CALL, get the pending call info. */
+// When step returns SS_STATUS_CALL, get the pending call info.
 const SS_call *SS_context_get_call(const SS_context *ctx);
 
-/* Provide the result for the pending call, then call step again. */
+// Provide the result for the pending call, then call step again.
 void SS_context_set_result(SS_context *ctx, SS_value result);
 
-/* Free the context and all internal state. */
+// Free the context and all internal state.
 void SS_context_free(SS_context *ctx);
 
 #pragma endregion

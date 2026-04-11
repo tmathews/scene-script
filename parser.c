@@ -2,7 +2,7 @@
 
 #include "internal.h"
 
-/* ── AST helpers ────────────────────────────────────────────────────── */
+// AST helpers
 
 SS_keyword SS_literal_to_keyword(const char *s) {
 	if (strcmp(s, "script") == 0)
@@ -90,7 +90,7 @@ static bool is_exp_token(const SS_token *t) {
 	return is_infix_token(t) || is_prefix_token(t);
 }
 
-/* ── Expression alloc helpers ───────────────────────────────────────── */
+// Expression alloc helpers
 
 static SS_expression *exp_new(void) {
 	SS_expression *e = calloc(1, sizeof(SS_expression));
@@ -113,7 +113,7 @@ static void exp_free(SS_expression *e) {
 	free(e);
 }
 
-/* ── Statement / Block alloc helpers ────────────────────────────────── */
+// Statement / Block alloc helpers
 
 static void block_push_stmt(SS_block *b, SS_statement s) {
 	b->stmts = realloc(b->stmts, (b->stmts_len + 1) * sizeof(SS_statement));
@@ -153,7 +153,7 @@ static void stmt_free(SS_statement *s) {
 	s->alts_len = 0;
 }
 
-/* ── Parser (recursive descent + Pratt) ─────────────────────────────── */
+// Parser (recursive descent + Pratt)
 
 static int parse_expression(const SS_token *tokens, size_t len, size_t *i,
 	unsigned prec, SS_expression **out);
@@ -214,7 +214,7 @@ static int parse_call_exp(const SS_token *tokens, size_t len, size_t *i,
 	SS_expression *e = exp_new();
 	e->type = SS_EXP_CALL;
 	exp_add_child(e, lit);
-	(*i)++; /* past ( */
+	(*i)++;// past (
 	while (*i < len && tokens[*i].type != SS_TOK_RPAREN) {
 		if (tokens[*i].type == SS_TOK_COMMA) {
 			(*i)++;
@@ -227,7 +227,7 @@ static int parse_call_exp(const SS_token *tokens, size_t len, size_t *i,
 		}
 		exp_add_child(e, arg);
 	}
-	(*i)++; /* past ) */
+	(*i)++;// past )
 	*out = e;
 	return 0;
 }
@@ -283,7 +283,7 @@ static int parse_expression(const SS_token *tokens, size_t len, size_t *i,
 	return 0;
 }
 
-/* forward declarations */
+// forward declarations
 static int parse_block(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_block *out);
 static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
@@ -292,7 +292,7 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 static int parse_conditional(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	out->type = SS_STMT_IF;
-	(*i)++; /* past if */
+	(*i)++;// past if
 	if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &out->expression) != 0)
 		return -1;
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
@@ -343,7 +343,7 @@ static int parse_conditional(const SS_token *tokens, size_t len, size_t *i,
 static int parse_switch(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	out->type = SS_STMT_SWITCH;
-	(*i)++; /* past 'switch' */
+	(*i)++;// past 'switch'
 	if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &out->expression) != 0)
 		return -1;
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
@@ -355,7 +355,7 @@ static int parse_switch(const SS_token *tokens, size_t len, size_t *i,
 static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	memset(out, 0, sizeof(*out));
-	(*i)++; /* past current indent */
+	(*i)++;// past current indent
 	if (*i >= len)
 		return -1;
 
@@ -374,8 +374,8 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 		break;
 	case SS_KEY_CASE: {
 		out->type = SS_STMT_CASE;
-		(*i)++; /* past 'case' */
-		/* Parse comma-separated match values into an EXP_LIST */
+		(*i)++;// past 'case'
+		// Parse comma-separated match values into an EXP_LIST
 		SS_expression *list = calloc(1, sizeof(SS_expression));
 		list->type = SS_EXP_LIST;
 		while (1) {
@@ -386,7 +386,7 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 			}
 			exp_add_child(list, val);
 			if (*i < len && tokens[*i].type == SS_TOK_COMMA) {
-				(*i)++; /* past comma */
+				(*i)++;// past comma
 			} else {
 				break;
 			}
@@ -423,7 +423,7 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 static int parse_block(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_block *out) {
 	unsigned count = 0;
-	(*i)++; /* past : */
+	(*i)++;// past :
 	while (*i < len) {
 		if (tokens[*i].type != SS_TOK_INDENT)
 			break;
@@ -454,7 +454,7 @@ static int parse_script(const SS_token *tokens, size_t len, size_t *i,
 	if (col->type != SS_TOK_COLON)
 		return -1;
 	out->name = ss_str_dup(word->literal);
-	*i += 2; /* past name to : */
+	*i += 2;// past name to :
 	return parse_block(tokens, len, i, 0, &out->block);
 }
 
@@ -473,7 +473,7 @@ static SS_value token_to_value(const SS_token *t) {
 			return SS_bool_value(true);
 		if (strcmp(t->literal, "false") == 0)
 			return SS_bool_value(false);
-		/* fall through */
+		// fall through
 	default:
 		return SS_nil_value();
 	}
@@ -482,15 +482,14 @@ static SS_value token_to_value(const SS_token *t) {
 static int parse_constants(const SS_token *tokens, size_t len, size_t *i,
 	SS_constant **out, size_t *out_len) {
 	size_t cap = *out_len;
-	(*i)++; /* past 'constants' */
+	(*i)++;// past 'constants'
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
 		return -1;
-	(*i)++; /* past ':' */
-
+	(*i)++;// past ':'
 	while (*i < len) {
 		if (tokens[*i].type != SS_TOK_INDENT)
 			break;
-		/* Count indent depth — must be exactly 1 */
+		// Count indent depth — must be exactly 1
 		unsigned depth = 0;
 		while (*i < len && tokens[*i].type == SS_TOK_INDENT) {
 			depth++;
@@ -500,7 +499,7 @@ static int parse_constants(const SS_token *tokens, size_t len, size_t *i,
 			*i -= depth;
 			break;
 		}
-		/* Expect: Name = value */
+		// Expect: Name = value
 		if (*i + 2 >= len)
 			return -1;
 		if (tokens[*i].type != SS_TOK_WORD)
@@ -574,7 +573,7 @@ void SS_scripts_free(SS_script *scripts, size_t len) {
 	free(scripts);
 }
 
-/* ── Print / Debug ──────────────────────────────────────────────────── */
+// Print / Debug
 
 int SS_sprint_expression(const SS_expression *e, char *buf, size_t len) {
 	if (!e)
@@ -597,7 +596,7 @@ int SS_sprint_expression(const SS_expression *e, char *buf, size_t len) {
 		return n;
 	}
 	case SS_EXP_INFIX: {
-		/* children[1] = left, children[0] = right */
+		// children[1] = left, children[0] = right
 		int n = snprintf(buf, len, "(");
 		n += SS_sprint_expression(e->children[1], buf ? buf + n : NULL,
 			len > (size_t)n ? len - n : 0);

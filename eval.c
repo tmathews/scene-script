@@ -2,7 +2,7 @@
 
 #include "internal.h"
 
-/* ── Value ──────────────────────────────────────────────────────────── */
+// Value
 
 SS_value SS_nil_value(void) {
 	return (SS_value){.type = SS_VAL_NIL};
@@ -67,7 +67,7 @@ int SS_value_sprint(const SS_value *v, char *buf, size_t len) {
 	return snprintf(buf, len, "Invalid Type");
 }
 
-/* ── Evaluator (stack machine) ─────────────────────────────────────── */
+// Evaluator (stack machine)
 
 typedef enum { FRAME_BLOCK,
 	FRAME_COND,
@@ -224,7 +224,7 @@ static bool is_leaf(const SS_expression *expr) {
 	       expr->type == SS_EXP_STRING || expr->type == SS_EXP_WORD;
 }
 
-/* Process the top EXPR frame. Returns 0=continue, 1=yield, -1=error. */
+// Process the top EXPR frame. Returns 0=continue, 1=yield, -1=error.
 static int step_expr(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
 	const SS_expression *expr = f->expr.expr;
@@ -274,7 +274,7 @@ static int step_expr(SS_context *ctx) {
 	}
 
 	case SS_EXP_INFIX: {
-		/* children[1]=left, children[0]=right */
+		// children[1]=left, children[0]=right
 		if (f->expr.phase == 0) {
 			f->expr.has_left = false;
 			f->expr.phase = 1;
@@ -284,7 +284,7 @@ static int step_expr(SS_context *ctx) {
 		if (f->expr.phase == 1) {
 			SS_value left = ctx->result;
 			ctx->result = SS_nil_value();
-			/* Short-circuit for and/or */
+			// Short-circuit for and/or
 			if (expr->op == SS_TOK_AND || expr->op == SS_TOK_OR) {
 				if (!SS_value_is_boolean(&left)) {
 					SS_value_free(&left);
@@ -411,10 +411,10 @@ static int step_expr(SS_context *ctx) {
 			ctx->pending_call.args = f->expr.args;
 			ctx->pending_call.args_len = f->expr.argc;
 			f->expr.phase = 3;
-			return 1; /* yield */
+			return 1;// yield
 		}
 
-		/* phase 3: resumed after yield */
+		// phase 3: resumed after yield
 		for (size_t i = 0; i < f->expr.argc; i++)
 			SS_value_free(&f->expr.args[i]);
 		free(f->expr.args);
@@ -445,17 +445,17 @@ static bool values_equal(const SS_value *a, const SS_value *b) {
 	return false;
 }
 
-/* Process the top SWITCH frame. Returns 0=continue, 1=yield, -1=error. */
+// Process the top SWITCH frame. Returns 0=continue, 1=yield, -1=error.
 static int step_switch(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
 
 	switch (f->sw.phase) {
-	case 0: /* evaluate switch expression */
+	case 0:// evaluate switch expression
 		f->sw.phase = 1;
 		push_expr_frame(ctx, f->sw.stmt->expression);
 		return 0;
 
-	case 1: { /* match against cases */
+	case 1: {// match against cases
 		f->sw.switch_val = ctx->result;
 		f->sw.has_val = true;
 		ctx->result = SS_nil_value();
@@ -479,12 +479,12 @@ static int step_switch(SS_context *ctx) {
 				}
 			}
 		}
-		/* no match */
+		// no match
 		pop_frame(ctx);
 		return 0;
 	}
 
-	case 2: /* case body done */
+	case 2:// case body done
 		pop_frame(ctx);
 		return 0;
 
@@ -493,7 +493,7 @@ static int step_switch(SS_context *ctx) {
 	}
 }
 
-/* Process the top BLOCK frame. Returns 0=continue, 1=yield, -1=error. */
+// Process the top BLOCK frame. Returns 0=continue, 1=yield, -1=error.
 static int step_block(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
 
@@ -550,7 +550,7 @@ static int step_block(SS_context *ctx) {
 	}
 }
 
-/* Process the top COND frame. Returns 0=continue, -1=error. */
+// Process the top COND frame. Returns 0=continue, -1=error.
 static int step_cond(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
 
@@ -624,7 +624,7 @@ static int step_cond(SS_context *ctx) {
 	}
 }
 
-/* ── Context API ───────────────────────────────────────────────────── */
+// Context API
 
 SS_context *SS_context_create(SS_program *p, const char *script_name) {
 	const SS_script *script = find_script(p, script_name);
@@ -695,7 +695,7 @@ void SS_context_free(SS_context *ctx) {
 	free(ctx);
 }
 
-/* ── Program ────────────────────────────────────────────────────────── */
+// Program
 
 int SS_program_init(SS_program *p, const char *src) {
 	memset(p, 0, sizeof(*p));
@@ -714,7 +714,7 @@ int SS_program_init(SS_program *p, const char *src) {
 	}
 	for (size_t i = 0; i < constants_len; i++)
 		SS_program_set_constant(p, constants[i].name, constants[i].value);
-	/* Free names only — values are now owned by program constants */
+	// Free names only — values are now owned by program constants
 	for (size_t i = 0; i < constants_len; i++)
 		free(constants[i].name);
 	free(constants);

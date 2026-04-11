@@ -30,7 +30,7 @@ static int tests_run, tests_passed, tests_failed;
 		prev_fail = tests_failed;        \
 	} while (0)
 
-/* ── helpers ────────────────────────────────────────────────────────── */
+// helpers
 
 static char *read_file(const char *path) {
 	FILE *f = fopen(path, "rb");
@@ -46,7 +46,7 @@ static char *read_file(const char *path) {
 	return buf;
 }
 
-/* Parse first script from a source string, return 0 on success. */
+// Parse first script from a source string, return 0 on success.
 static int parse_first(const char *src, SS_script **out, SS_script **all, size_t *all_len) {
 	SS_token *tokens;
 	size_t tokens_len;
@@ -63,7 +63,7 @@ static int parse_first(const char *src, SS_script **out, SS_script **all, size_t
 	return 0;
 }
 
-/* ── Lexer tests ────────────────────────────────────────────────────── */
+// Lexer tests
 
 static void test_lexer(void) {
 	char *buf = read_file("./demo.script");
@@ -77,7 +77,7 @@ static void test_lexer(void) {
 	free(buf);
 }
 
-/* ── Parser tests ───────────────────────────────────────────────────── */
+// Parser tests
 
 static void test_parse_empty_script(void) {
 	SS_script *s, *all;
@@ -247,7 +247,7 @@ static void test_parse_conditional_if_chain(void) {
 	SS_scripts_free(all, n);
 }
 
-/* ── Evaluator tests ────────────────────────────────────────────────── */
+// Evaluator tests
 
 typedef struct {
 	int hello_count;
@@ -260,11 +260,11 @@ static int test_call_fn(const SS_call *call, SS_value *result, void *userdata) {
 	test_eval_state *st = userdata;
 	if (strcmp(call->name, "HelloWorld") == 0)
 		st->hello_count++;
-	/* Save last call info */
+	// Save last call info
 	st->last_call.name = call->name;
 	st->last_args_len = (int)call->args_len;
 	for (size_t i = 0; i < call->args_len && i < 8; i++) {
-		/* Copy values; duplicate strings */
+		// Copy values; duplicate strings
 		if (call->args[i].type == SS_VAL_STRING) {
 			st->last_args[i] = SS_string_value(call->args[i].string);
 		} else {
@@ -350,7 +350,7 @@ static void test_eval_conditional_and_or(void) {
 }
 
 static void test_eval_comparators(void) {
-	/* is: equality */
+	// is: equality
 	const char *src_is =
 		"script Entry:\n"
 		"\tif 3 is 3:\n"
@@ -366,7 +366,7 @@ static void test_eval_comparators(void) {
 	free_test_state(&st);
 	SS_program_free(&p);
 
-	/* gt, gte, lt, lte */
+	// gt, gte, lt, lte
 	const char *src_cmp =
 		"script Entry:\n"
 		"\tif 5 gt 3:\n"
@@ -385,7 +385,7 @@ static void test_eval_comparators(void) {
 	memset(&st, 0, sizeof(st));
 	rc = SS_program_run(&p, "Entry", test_call_fn, &st);
 	ASSERT(rc == 0, "Run failed (cmp)");
-	/* 5>3=yes, 3>5=no, 5>=5=yes, 3<5=yes, 5<3=no, 5<=5=yes → 4 calls */
+	// 5>3=yes, 3>5=no, 5>=5=yes, 3<5=yes, 5<3=no, 5<=5=yes → 4 calls
 	ASSERT(st.hello_count == 4, "cmp: expected 4 calls, got %d", st.hello_count);
 	free_test_state(&st);
 	SS_program_free(&p);
@@ -409,7 +409,7 @@ static void test_eval_comparator_string_is(void) {
 }
 
 static void test_eval_comparator_with_calls(void) {
-	/* Comparators should work with call return values via context API */
+	// Comparators should work with call return values via context API
 	const char *src =
 		"script Entry:\n"
 		"\tif GetLevel() gte 5:\n"
@@ -419,13 +419,13 @@ static void test_eval_comparator_with_calls(void) {
 	SS_context *ctx = SS_context_create(&p, "Entry");
 	ASSERT(ctx != NULL, "Context create failed");
 
-	/* GetLevel() call */
+	// GetLevel() call
 	SS_status s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for GetLevel");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "GetLevel") == 0, "Expected GetLevel");
 	SS_context_set_result(ctx, SS_number_value(10));
 
-	/* Dialog call in the true branch */
+	// Dialog call in the true branch
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
@@ -439,7 +439,7 @@ static void test_eval_comparator_with_calls(void) {
 }
 
 static void test_eval_comparator_combined(void) {
-	/* Comparators combined with and/or */
+	// Comparators combined with and/or
 	const char *src =
 		"script Entry:\n"
 		"\tif 5 gt 3 and 2 lt 4:\n"
@@ -453,7 +453,7 @@ static void test_eval_comparator_combined(void) {
 	test_eval_state st = {0};
 	int rc = SS_program_run(&p, "Entry", test_call_fn, &st);
 	ASSERT(rc == 0, "Run failed");
-	/* (5>3 && 2<4)=yes, (5<3 || 2==2)=yes, (5<3 && 2==2)=no → 2 calls */
+	// (5>3 && 2<4)=yes, (5<3 || 2==2)=yes, (5<3 && 2==2)=no → 2 calls
 	ASSERT(st.hello_count == 2, "combined: expected 2 calls, got %d", st.hello_count);
 	free_test_state(&st);
 	SS_program_free(&p);
@@ -479,10 +479,10 @@ static void test_eval_call_arg_types(void) {
 	SS_program_free(&p);
 }
 
-/* ── Context (yield) tests ──────────────────────────────────────────── */
+// Context (yield) tests
 
 static void test_context_basic(void) {
-	/* A script with one call should yield once, then finish. */
+	// A script with one call should yield once, then finish.
 	const char *src = "script Entry:\n\tDialog(`hello`)";
 	SS_program p;
 	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
@@ -506,7 +506,7 @@ static void test_context_basic(void) {
 }
 
 static void test_context_multi_calls(void) {
-	/* Multiple sequential calls yield one at a time. */
+	// Multiple sequential calls yield one at a time.
 	const char *src =
 		"script Entry:\n"
 		"\tA()\n"
@@ -533,7 +533,7 @@ static void test_context_multi_calls(void) {
 }
 
 static void test_context_conditional_call(void) {
-	/* Call inside a conditional should yield. */
+	// Call inside a conditional should yield.
 	const char *src =
 		"script Entry:\n"
 		"\tif HasItem(`key`):\n"
@@ -544,13 +544,13 @@ static void test_context_conditional_call(void) {
 	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
 	SS_context *ctx = SS_context_create(&p, "Entry");
 
-	/* First yield: HasItem call in the condition */
+	// First yield: HasItem call in the condition
 	SS_status s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for HasItem");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "HasItem") == 0, "Expected HasItem");
 	SS_context_set_result(ctx, SS_bool_value(true));
 
-	/* Second yield: Dialog in the true branch */
+	// Second yield: Dialog in the true branch
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
@@ -562,7 +562,7 @@ static void test_context_conditional_call(void) {
 
 	SS_context_free(ctx);
 
-	/* Now test the false branch */
+	// Now test the false branch
 	ctx = SS_context_create(&p, "Entry");
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for HasItem (2nd run)");
@@ -581,7 +581,7 @@ static void test_context_conditional_call(void) {
 }
 
 static void test_context_and_or_calls(void) {
-	/* Calls inside and/or expressions should yield, with short-circuit. */
+	// Calls inside and/or expressions should yield, with short-circuit.
 	const char *src =
 		"script Entry:\n"
 		"\tif A() and B():\n"
@@ -589,7 +589,7 @@ static void test_context_and_or_calls(void) {
 	SS_program p;
 	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
 
-	/* Test 1: A() returns true → B() is evaluated → B() returns true → C() executes */
+	// Test 1: A() returns true → B() is evaluated → B() returns true → C() executes
 	SS_context *ctx = SS_context_create(&p, "Entry");
 	SS_status s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
@@ -607,7 +607,7 @@ static void test_context_and_or_calls(void) {
 	ASSERT(s == SS_STATUS_DONE, "Expected DONE");
 	SS_context_free(ctx);
 
-	/* Test 2: A() returns false → short-circuit, B() not called, C() not called */
+	// Test 2: A() returns false → short-circuit, B() not called, C() not called
 	ctx = SS_context_create(&p, "Entry");
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A (2)");
@@ -621,7 +621,7 @@ static void test_context_and_or_calls(void) {
 }
 
 static void test_context_run_keyword(void) {
-	/* The 'run' keyword should switch to another script. */
+	// The 'run' keyword should switch to another script.
 	const char *src =
 		"script Entry:\n"
 		"\tA()\n"
@@ -637,7 +637,7 @@ static void test_context_run_keyword(void) {
 	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
 	SS_context_set_result(ctx, SS_nil_value());
 
-	/* After 'run Other', B() is skipped, C() is called */
+	// After 'run Other', B() is skipped, C() is called
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "C") == 0, "Expected C, not B");
 	SS_context_set_result(ctx, SS_nil_value());
@@ -650,7 +650,7 @@ static void test_context_run_keyword(void) {
 }
 
 static void test_context_end_keyword(void) {
-	/* The 'end' keyword should stop execution immediately. */
+	// The 'end' keyword should stop execution immediately.
 	const char *src =
 		"script Entry:\n"
 		"\tA()\n"
@@ -664,7 +664,7 @@ static void test_context_end_keyword(void) {
 	ASSERT(s == SS_STATUS_CALL && strcmp(SS_context_get_call(ctx)->name, "A") == 0, "Expected A");
 	SS_context_set_result(ctx, SS_nil_value());
 
-	/* end → DONE, B() never called */
+	// end → DONE, B() never called
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_DONE, "Expected DONE after end");
 
@@ -673,7 +673,7 @@ static void test_context_end_keyword(void) {
 }
 
 static void test_context_deferred_resume(void) {
-	/* Simulate saving and resuming context across "frames" (game loop style). */
+	// Simulate saving and resuming context across "frames" (game loop style).
 	const char *src =
 		"script Entry:\n"
 		"\tDialog(`line 1`)\n"
@@ -689,7 +689,7 @@ static void test_context_deferred_resume(void) {
 		ASSERT(s == SS_STATUS_CALL, "Frame %d: expected CALL", i);
 		ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, expected[i]) == 0,
 			"Frame %d: expected '%s'", i, expected[i]);
-		/* Simulate deferred resume — context is held, result provided later */
+		// Simulate deferred resume — context is held, result provided later
 		SS_context_set_result(ctx, SS_nil_value());
 	}
 
@@ -700,7 +700,7 @@ static void test_context_deferred_resume(void) {
 	SS_program_free(&p);
 }
 
-/* ── Switch tests ───────────────────────────────────────────────────── */
+// Switch tests
 
 static void test_parse_switch(void) {
 	const char *src =
@@ -723,11 +723,11 @@ static void test_parse_switch(void) {
 	ASSERT(cases->stmts[0].type == SS_STMT_CASE, "Case 0 type");
 	ASSERT(cases->stmts[1].type == SS_STMT_CASE, "Case 1 type");
 
-	/* First case has 2 match values */
+	// First case has 2 match values
 	ASSERT(cases->stmts[0].expression->type == SS_EXP_LIST, "Case 0 expr type");
 	ASSERT(cases->stmts[0].expression->children_len == 2, "Case 0 has 2 values");
 
-	/* Second case has 1 match value */
+	// Second case has 1 match value
 	ASSERT(cases->stmts[1].expression->children_len == 1, "Case 1 has 1 value");
 
 	SS_program_free(&p);
@@ -803,13 +803,13 @@ static void test_context_switch(void) {
 	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
 	SS_context *ctx = SS_context_create(&p, "Entry");
 
-	/* First yield: GetMap() call */
+	// First yield: GetMap() call
 	SS_status s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for GetMap");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "GetMap") == 0, "Expected GetMap");
 	SS_context_set_result(ctx, SS_number_value(2));
 
-	/* Second yield: Dialog call from matched case */
+	// Second yield: Dialog call from matched case
 	s = SS_context_step(ctx);
 	ASSERT(s == SS_STATUS_CALL, "Expected CALL for Dialog");
 	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
@@ -850,7 +850,7 @@ static void test_context_namespaced_run(void) {
 	SS_program_free(&p);
 }
 
-/* ── Constants tests ────────────────────────────────────────────────── */
+// Constants tests
 
 static void test_constants_basic(void) {
 	const char *src =
@@ -920,16 +920,16 @@ static void test_constants_switch(void) {
 	SS_program_free(&p);
 }
 
-/* ── main ───────────────────────────────────────────────────────────── */
+// main
 
 int main(void) {
 	int prev_fail = 0;
 	printf("\n=== scene_script tests ===\n\n");
 
-	/* Lexer */
+	// Lexer
 	RUN_TEST(test_lexer);
 
-	/* Parser */
+	// Parser
 	RUN_TEST(test_parse_empty_script);
 	RUN_TEST(test_parse_basic_expression);
 	RUN_TEST(test_parse_run);
@@ -949,7 +949,7 @@ int main(void) {
 	RUN_TEST(test_parse_conditional_elif);
 	RUN_TEST(test_parse_conditional_if_chain);
 
-	/* Evaluator */
+	// Evaluator
 	RUN_TEST(test_eval_simple);
 	RUN_TEST(test_eval_call);
 	RUN_TEST(test_eval_conditional);
@@ -960,7 +960,7 @@ int main(void) {
 	RUN_TEST(test_eval_comparator_combined);
 	RUN_TEST(test_eval_call_arg_types);
 
-	/* Context (yield) */
+	// Context (yield)
 	RUN_TEST(test_context_basic);
 	RUN_TEST(test_context_multi_calls);
 	RUN_TEST(test_context_conditional_call);
@@ -969,7 +969,7 @@ int main(void) {
 	RUN_TEST(test_context_end_keyword);
 	RUN_TEST(test_context_deferred_resume);
 
-	/* Switch */
+	// Switch
 	RUN_TEST(test_parse_switch);
 	RUN_TEST(test_eval_switch);
 	RUN_TEST(test_eval_switch_no_match);
@@ -977,7 +977,7 @@ int main(void) {
 	RUN_TEST(test_context_switch);
 	RUN_TEST(test_context_namespaced_run);
 
-	/* Constants */
+	// Constants
 	RUN_TEST(test_constants_basic);
 	RUN_TEST(test_constants_in_script);
 	RUN_TEST(test_constants_switch);

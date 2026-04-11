@@ -1,12 +1,10 @@
-/*
- * demo.c – Interactive sample app for SceneScript (demo.script)
- *
- * Build:  make demo
- * Run:    ./demo
- *
- * Simulates a small game world with maps, items, dialog, and teleportation.
- * Uses the yield-based context API so each call can be handled interactively.
- */
+// demo.c – Interactive sample app for SceneScript (demo.script)
+//
+// Build:  make demo
+// Run:    ./demo
+//
+// Simulates a small game world with maps, items, dialog, and teleportation.
+// Uses the yield-based context API so each call can be handled interactively.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +12,7 @@
 
 #include "scene_script.h"
 
-/* ── Game state ─────────────────────────────────────────────────────── */
+// Game state
 
 static int current_map = 1;
 static char npc_name[64] = "NPC";
@@ -41,7 +39,7 @@ static void give_item(const char *name, int count) {
 	}
 }
 
-/* ── Call handler ───────────────────────────────────────────────────── */
+// Call handler
 
 static SS_value handle_call(const SS_call *call) {
 	if (strcmp(call->name, "Name") == 0) {
@@ -81,11 +79,11 @@ static SS_value handle_call(const SS_call *call) {
 		char input[128];
 		if (!fgets(input, sizeof(input), stdin))
 			input[0] = '\0';
-		/* Strip trailing newline */
+		// Strip trailing newline
 		size_t ilen = strlen(input);
 		if (ilen > 0 && input[ilen - 1] == '\n')
 			input[ilen - 1] = '\0';
-		/* Try matching by number first, then by text */
+		// Try matching by number first, then by text
 		int choice = 0;
 		char *end;
 		long num = strtol(input, &end, 10);
@@ -123,7 +121,7 @@ static SS_value handle_call(const SS_call *call) {
 	return SS_nil_value();
 }
 
-/* ── Main ───────────────────────────────────────────────────────────── */
+// Main
 
 static void print_status(void) {
 	printf("┌─────────────────────────────────┐\n");
@@ -142,7 +140,7 @@ int main(int argc, char **argv) {
 	if (argc > 1)
 		script_file = argv[1];
 
-	/* Read the script file */
+	// Read the script file
 	FILE *f = fopen(script_file, "r");
 	if (!f) {
 		fprintf(stderr, "error: cannot open %s\n", script_file);
@@ -156,7 +154,7 @@ int main(int argc, char **argv) {
 	src[flen] = '\0';
 	fclose(f);
 
-	/* Parse */
+	// Parse
 	SS_program prog;
 	if (SS_program_init(&prog, src) != 0) {
 		fprintf(stderr, "error: failed to parse script\n");
@@ -170,7 +168,7 @@ int main(int argc, char **argv) {
 	printf("║   SceneScript Demo – demo.script  ║\n");
 	printf("╚═══════════════════════════════════╝\n\n");
 
-	/* Let the player pick starting conditions */
+	// Let the player pick starting conditions
 	printf("Which map are you on? (1, 2, or 3): ");
 	if (scanf("%d", &current_map) != 1)
 		current_map = 1;
@@ -188,7 +186,7 @@ int main(int argc, char **argv) {
 	print_status();
 	printf("--- Running \"Entry\" script ---\n\n");
 
-	/* Run using the context API */
+	// Run using the context API
 	SS_context *ctx = SS_context_create(&prog, "Entry");
 	if (!ctx) {
 		fprintf(stderr, "error: script 'Entry' not found\n");

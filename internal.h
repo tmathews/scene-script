@@ -1,9 +1,7 @@
-/*
- * scene_script_internal.h – Shared internal utilities for SceneScript
- *
- * This header is for internal use by ss_lexer.c, ss_parser.c, and ss_eval.c.
- * Do not include from external code.
- */
+// scene_script_internal.h – Shared internal utilities for SceneScript
+//
+// This header is for internal use by ss_lexer.c, ss_parser.c, and ss_eval.c.
+// Do not include from external code.
 #pragma once
 
 #include <stdlib.h>

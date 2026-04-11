@@ -2,7 +2,7 @@
 
 #include "internal.h"
 
-/* ── Token helpers ──────────────────────────────────────────────────── */
+// Token helpers
 
 const char *SS_token_type_str(SS_token_type t) {
 	switch (t) {
@@ -50,7 +50,7 @@ const char *SS_token_type_str(SS_token_type t) {
 	return "?";
 }
 
-/* ── Lexer ──────────────────────────────────────────────────────────── */
+// Lexer
 
 static bool is_word_char(char c) {
 	return c == '.' || isalpha((unsigned char)c) || isdigit((unsigned char)c);
@@ -142,7 +142,7 @@ int SS_lex(const char *src, SS_token **out, size_t *out_len) {
 		}
 		if (!in_string && c == '#') {
 			in_comment = true;
-			/* Remove indent tokens emitted earlier on this comment line */
+			// Remove indent tokens emitted earlier on this comment line
 			while (*out_len > 0 && (*out)[*out_len - 1].type == SS_TOK_INDENT) {
 				free((*out)[*out_len - 1].literal);
 				(*out_len)--;
