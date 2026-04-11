@@ -214,7 +214,7 @@ static int parse_call_exp(const SS_token *tokens, size_t len, size_t *i,
 	SS_expression *e = exp_new();
 	e->type = SS_EXP_CALL;
 	exp_add_child(e, lit);
-	(*i)++;// past (
+	(*i)++; // past (
 	while (*i < len && tokens[*i].type != SS_TOK_RPAREN) {
 		if (tokens[*i].type == SS_TOK_COMMA) {
 			(*i)++;
@@ -227,7 +227,7 @@ static int parse_call_exp(const SS_token *tokens, size_t len, size_t *i,
 		}
 		exp_add_child(e, arg);
 	}
-	(*i)++;// past )
+	(*i)++; // past )
 	*out = e;
 	return 0;
 }
@@ -292,7 +292,7 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 static int parse_conditional(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	out->type = SS_STMT_IF;
-	(*i)++;// past if
+	(*i)++; // past if
 	if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &out->expression) != 0)
 		return -1;
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
@@ -343,7 +343,7 @@ static int parse_conditional(const SS_token *tokens, size_t len, size_t *i,
 static int parse_switch(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	out->type = SS_STMT_SWITCH;
-	(*i)++;// past 'switch'
+	(*i)++; // past 'switch'
 	if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &out->expression) != 0)
 		return -1;
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
@@ -355,7 +355,7 @@ static int parse_switch(const SS_token *tokens, size_t len, size_t *i,
 static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_statement *out) {
 	memset(out, 0, sizeof(*out));
-	(*i)++;// past current indent
+	(*i)++; // past current indent
 	if (*i >= len)
 		return -1;
 
@@ -374,19 +374,20 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 		break;
 	case SS_KEY_CASE: {
 		out->type = SS_STMT_CASE;
-		(*i)++;// past 'case'
+		(*i)++; // past 'case'
 		// Parse comma-separated match values into an EXP_LIST
 		SS_expression *list = calloc(1, sizeof(SS_expression));
 		list->type = SS_EXP_LIST;
 		while (1) {
 			SS_expression *val = NULL;
 			if (parse_expression(tokens, len, i, SS_PREC_LOWEST, &val) != 0) {
-				exp_free(list); free(list);
+				exp_free(list);
+				free(list);
 				return -1;
 			}
 			exp_add_child(list, val);
 			if (*i < len && tokens[*i].type == SS_TOK_COMMA) {
-				(*i)++;// past comma
+				(*i)++; // past comma
 			} else {
 				break;
 			}
@@ -423,7 +424,7 @@ static int parse_statement(const SS_token *tokens, size_t len, size_t *i,
 static int parse_block(const SS_token *tokens, size_t len, size_t *i,
 	unsigned indent, SS_block *out) {
 	unsigned count = 0;
-	(*i)++;// past :
+	(*i)++; // past :
 	while (*i < len) {
 		if (tokens[*i].type != SS_TOK_INDENT)
 			break;
@@ -454,7 +455,7 @@ static int parse_script(const SS_token *tokens, size_t len, size_t *i,
 	if (col->type != SS_TOK_COLON)
 		return -1;
 	out->name = ss_str_dup(word->literal);
-	*i += 2;// past name to :
+	*i += 2; // past name to :
 	return parse_block(tokens, len, i, 0, &out->block);
 }
 
@@ -482,10 +483,10 @@ static SS_value token_to_value(const SS_token *t) {
 static int parse_constants(const SS_token *tokens, size_t len, size_t *i,
 	SS_constant **out, size_t *out_len) {
 	size_t cap = *out_len;
-	(*i)++;// past 'constants'
+	(*i)++; // past 'constants'
 	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
 		return -1;
-	(*i)++;// past ':'
+	(*i)++; // past ':'
 	while (*i < len) {
 		if (tokens[*i].type != SS_TOK_INDENT)
 			break;
@@ -539,7 +540,7 @@ int SS_parse(const SS_token *tokens, size_t tokens_len, SS_script **out,
 		SS_keyword kw = SS_literal_to_keyword(t->literal);
 		if (kw == SS_KEY_CONSTANTS) {
 			if (parse_constants(tokens, tokens_len, &i,
-				constants_out, constants_len) != 0)
+					constants_out, constants_len) != 0)
 				return -1;
 			continue;
 		}

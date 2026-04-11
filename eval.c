@@ -411,7 +411,7 @@ static int step_expr(SS_context *ctx) {
 			ctx->pending_call.args = f->expr.args;
 			ctx->pending_call.args_len = f->expr.argc;
 			f->expr.phase = 3;
-			return 1;// yield
+			return 1; // yield
 		}
 
 		// phase 3: resumed after yield
@@ -450,12 +450,12 @@ static int step_switch(SS_context *ctx) {
 	frame *f = &ctx->stack[ctx->stack_len - 1];
 
 	switch (f->sw.phase) {
-	case 0:// evaluate switch expression
+	case 0: // evaluate switch expression
 		f->sw.phase = 1;
 		push_expr_frame(ctx, f->sw.stmt->expression);
 		return 0;
 
-	case 1: {// match against cases
+	case 1: { // match against cases
 		f->sw.switch_val = ctx->result;
 		f->sw.has_val = true;
 		ctx->result = SS_nil_value();
@@ -484,7 +484,7 @@ static int step_switch(SS_context *ctx) {
 		return 0;
 	}
 
-	case 2:// case body done
+	case 2: // case body done
 		pop_frame(ctx);
 		return 0;
 
