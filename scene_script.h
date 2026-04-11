@@ -54,6 +54,7 @@ typedef enum {
 	SS_TOK_LTE,
 	SS_TOK_COMMA,
 	SS_TOK_COLON,
+	SS_TOK_ASSIGN,
 	SS_TOK_LPAREN,
 	SS_TOK_RPAREN,
 	SS_TOK_INDENT,
@@ -87,6 +88,7 @@ typedef enum {
 	SS_KEY_FALSE,
 	SS_KEY_SWITCH,
 	SS_KEY_CASE,
+	SS_KEY_CONSTANTS,
 } SS_keyword;
 
 typedef enum {
@@ -138,15 +140,23 @@ struct SS_statement {
 
 typedef struct {
 	char *name;
+	SS_value value;
+} SS_constant;
+
+typedef struct {
+	char *name;
 	SS_block block;
 } SS_script;
 
 SS_keyword SS_literal_to_keyword(const char *s);
 
-/* Parse an array of tokens into scripts. Caller must free with SS_scripts_free. */
+/* Parse an array of tokens into scripts and constants.
+   Caller must free with SS_scripts_free / SS_constants_free. */
 int SS_parse(const SS_token *tokens, size_t tokens_len,
-	SS_script **out, size_t *out_len);
+	SS_script **out, size_t *out_len,
+	SS_constant **constants_out, size_t *constants_len);
 void SS_scripts_free(SS_script *scripts, size_t len);
+void SS_constants_free(SS_constant *constants, size_t len);
 
 #pragma endregion
 
@@ -170,25 +180,20 @@ typedef struct {
 typedef int (*SS_call_fn)(const SS_call *call, SS_value *result, void *userdata);
 
 typedef struct {
-	char *name;
-	SS_value value;
-} SS_global;
-
-typedef struct {
 	SS_script *scripts;
 	size_t scripts_len;
-	SS_global *globals;
-	size_t globals_len;
-	size_t globals_cap;
+	SS_constant *constants;
+	size_t constants_len;
+	size_t constants_cap;
 } SS_program;
 
 /* Initialise a program from source text. Returns 0 on success. */
 int SS_program_init(SS_program *p, const char *src);
 void SS_program_free(SS_program *p);
 
-/* Set / get globals. */
-void SS_program_set_global(SS_program *p, const char *name, SS_value v);
-const SS_value *SS_program_get_global(const SS_program *p, const char *name);
+/* Set / get constants (also used for script-defined constants). */
+void SS_program_set_constant(SS_program *p, const char *name, SS_value v);
+const SS_value *SS_program_get_constant(const SS_program *p, const char *name);
 
 /* Run a named script synchronously. Returns 0 on success. */
 int SS_program_run(SS_program *p, const char *name,

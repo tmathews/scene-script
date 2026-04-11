@@ -1,25 +1,29 @@
 # This is an example script used in our demo game. It showcases all
 # functionality of SceneScript.
 
+constants:
+	ShopKeeper.Name = `Goofbert`
+
 script Entry:
 	Name(`???`)
 	switch GetMap():
 		case 1, 3:
-			run Goofbert.TeleportOptions
+			run TeleportOptions
 		case 2:
 			if HasItem(`SecretShopToken`) gte 1:
 				run Goofbert.ShopOptions
 			else:
 				Dialog(`Way the wind blows...`)
 				end
-	Dialog(`Howdy there, fancy seeing you here.`)
+	Dialog(`Nothing here, hmm?`)
 
 script Goofbert.ShopOptions:
-	Name(`GoofBert`)
+	Name(ShopKeeper.Name)
+	Dialog(`The name's Goofbert.`)
 	Dialog(`Ah I see you have the Secret Shop Token! Fancy some of my warez will ya?`)
 	OpenShop(`GoofBert`)
 
-script Goofbert.TeleportOptions:
+script TeleportOptions:
 	switch Prompt(`Would you like to go to the secret tree?`, `Yes`, `No`):
 		case `Yes`:
 			Dialog(`Away we go!`)

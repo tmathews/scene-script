@@ -205,7 +205,7 @@ static int resolve_leaf(SS_context *ctx, const SS_expression *expr,
 		*out = SS_string_value(expr->value);
 		return 0;
 	case SS_EXP_WORD: {
-		const SS_value *g = SS_program_get_global(ctx->program, expr->value);
+		const SS_value *g = SS_program_get_constant(ctx->program, expr->value);
 		if (!g)
 			return -1;
 		if (g->type == SS_VAL_STRING)
@@ -703,46 +703,59 @@ int SS_program_init(SS_program *p, const char *src) {
 	size_t tokens_len = 0;
 	if (SS_lex(src, &tokens, &tokens_len) != 0)
 		return -1;
-	int rc = SS_parse(tokens, tokens_len, &p->scripts, &p->scripts_len);
+	SS_constant *constants = NULL;
+	size_t constants_len = 0;
+	int rc = SS_parse(tokens, tokens_len, &p->scripts, &p->scripts_len,
+		&constants, &constants_len);
 	SS_tokens_free(tokens, tokens_len);
-	return rc;
+	if (rc != 0) {
+		SS_constants_free(constants, constants_len);
+		return rc;
+	}
+	for (size_t i = 0; i < constants_len; i++)
+		SS_program_set_constant(p, constants[i].name, constants[i].value);
+	/* Free names only — values are now owned by program constants */
+	for (size_t i = 0; i < constants_len; i++)
+		free(constants[i].name);
+	free(constants);
+	return 0;
 }
 
 void SS_program_free(SS_program *p) {
 	SS_scripts_free(p->scripts, p->scripts_len);
 	p->scripts = NULL;
 	p->scripts_len = 0;
-	for (size_t i = 0; i < p->globals_len; i++) {
-		free(p->globals[i].name);
-		SS_value_free(&p->globals[i].value);
+	for (size_t i = 0; i < p->constants_len; i++) {
+		free(p->constants[i].name);
+		SS_value_free(&p->constants[i].value);
 	}
-	free(p->globals);
-	p->globals = NULL;
-	p->globals_len = 0;
-	p->globals_cap = 0;
+	free(p->constants);
+	p->constants = NULL;
+	p->constants_len = 0;
+	p->constants_cap = 0;
 }
 
-void SS_program_set_global(SS_program *p, const char *name, SS_value v) {
-	for (size_t i = 0; i < p->globals_len; i++) {
-		if (strcmp(p->globals[i].name, name) == 0) {
-			SS_value_free(&p->globals[i].value);
-			p->globals[i].value = v;
+void SS_program_set_constant(SS_program *p, const char *name, SS_value v) {
+	for (size_t i = 0; i < p->constants_len; i++) {
+		if (strcmp(p->constants[i].name, name) == 0) {
+			SS_value_free(&p->constants[i].value);
+			p->constants[i].value = v;
 			return;
 		}
 	}
-	if (p->globals_len == p->globals_cap) {
-		p->globals_cap = p->globals_cap ? p->globals_cap * 2 : 8;
-		p->globals = realloc(p->globals, p->globals_cap * sizeof(SS_global));
+	if (p->constants_len == p->constants_cap) {
+		p->constants_cap = p->constants_cap ? p->constants_cap * 2 : 8;
+		p->constants = realloc(p->constants, p->constants_cap * sizeof(SS_constant));
 	}
-	p->globals[p->globals_len].name = ss_str_dup(name);
-	p->globals[p->globals_len].value = v;
-	p->globals_len++;
+	p->constants[p->constants_len].name = ss_str_dup(name);
+	p->constants[p->constants_len].value = v;
+	p->constants_len++;
 }
 
-const SS_value *SS_program_get_global(const SS_program *p, const char *name) {
-	for (size_t i = 0; i < p->globals_len; i++) {
-		if (strcmp(p->globals[i].name, name) == 0)
-			return &p->globals[i].value;
+const SS_value *SS_program_get_constant(const SS_program *p, const char *name) {
+	for (size_t i = 0; i < p->constants_len; i++) {
+		if (strcmp(p->constants[i].name, name) == 0)
+			return &p->constants[i].value;
 	}
 	return NULL;
 }

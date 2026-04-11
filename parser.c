@@ -27,6 +27,8 @@ SS_keyword SS_literal_to_keyword(const char *s) {
 		return SS_KEY_SWITCH;
 	if (strcmp(s, "case") == 0)
 		return SS_KEY_CASE;
+	if (strcmp(s, "constants") == 0)
+		return SS_KEY_CONSTANTS;
 	return SS_KEY_INVALID;
 }
 
@@ -456,17 +458,93 @@ static int parse_script(const SS_token *tokens, size_t len, size_t *i,
 	return parse_block(tokens, len, i, 0, &out->block);
 }
 
+static SS_value token_to_value(const SS_token *t) {
+	switch (t->type) {
+	case SS_TOK_STRING:
+		return SS_string_value(t->literal);
+	case SS_TOK_NUMBER: {
+		char *end;
+		double d = strtod(t->literal, &end);
+		(void)end;
+		return SS_number_value(d);
+	}
+	case SS_TOK_WORD:
+		if (strcmp(t->literal, "true") == 0)
+			return SS_bool_value(true);
+		if (strcmp(t->literal, "false") == 0)
+			return SS_bool_value(false);
+		/* fall through */
+	default:
+		return SS_nil_value();
+	}
+}
+
+static int parse_constants(const SS_token *tokens, size_t len, size_t *i,
+	SS_constant **out, size_t *out_len) {
+	size_t cap = *out_len;
+	(*i)++; /* past 'constants' */
+	if (*i >= len || tokens[*i].type != SS_TOK_COLON)
+		return -1;
+	(*i)++; /* past ':' */
+
+	while (*i < len) {
+		if (tokens[*i].type != SS_TOK_INDENT)
+			break;
+		/* Count indent depth — must be exactly 1 */
+		unsigned depth = 0;
+		while (*i < len && tokens[*i].type == SS_TOK_INDENT) {
+			depth++;
+			(*i)++;
+		}
+		if (depth != 1) {
+			*i -= depth;
+			break;
+		}
+		/* Expect: Name = value */
+		if (*i + 2 >= len)
+			return -1;
+		if (tokens[*i].type != SS_TOK_WORD)
+			return -1;
+		const char *name = tokens[*i].literal;
+		(*i)++;
+		if (tokens[*i].type != SS_TOK_ASSIGN)
+			return -1;
+		(*i)++;
+		SS_value val = token_to_value(&tokens[*i]);
+		(*i)++;
+
+		if (*out_len == cap) {
+			cap = cap ? cap * 2 : 8;
+			*out = realloc(*out, cap * sizeof(SS_constant));
+		}
+		SS_constant c;
+		c.name = ss_str_dup(name);
+		c.value = val;
+		(*out)[(*out_len)++] = c;
+	}
+	return 0;
+}
+
 int SS_parse(const SS_token *tokens, size_t tokens_len, SS_script **out,
-	size_t *out_len) {
+	size_t *out_len, SS_constant **constants_out, size_t *constants_len) {
 	size_t cap = 0;
 	*out = NULL;
 	*out_len = 0;
+	*constants_out = NULL;
+	*constants_len = 0;
 	size_t i = 0;
 	while (i < tokens_len) {
 		const SS_token *t = &tokens[i];
 		if (t->type != SS_TOK_WORD)
 			return -1;
-		if (SS_literal_to_keyword(t->literal) != SS_KEY_SCRIPT)
+		SS_keyword kw = SS_literal_to_keyword(t->literal);
+		if (kw == SS_KEY_CONSTANTS) {
+			if (parse_constants(tokens, tokens_len, &i,
+				constants_out, constants_len) != 0)
+				return -1;
+			continue;
+		}
+		if (kw != SS_KEY_SCRIPT)
 			return -1;
 		SS_script s;
 		if (parse_script(tokens, tokens_len, &i, &s) != 0)
@@ -478,6 +556,14 @@ int SS_parse(const SS_token *tokens, size_t tokens_len, SS_script **out,
 		(*out)[(*out_len)++] = s;
 	}
 	return 0;
+}
+
+void SS_constants_free(SS_constant *constants, size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		free(constants[i].name);
+		SS_value_free(&constants[i].value);
+	}
+	free(constants);
 }
 
 void SS_scripts_free(SS_script *scripts, size_t len) {

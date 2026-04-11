@@ -129,7 +129,7 @@ be freed with `SS_value_free`.
 ```c
 SS_program p = {0};
 SS_program_init(&p, src);                          // parse source text
-SS_program_set_global(&p, "PlayerName", SS_string_value("Ada"));
+SS_program_set_constant(&p, "PlayerName", SS_string_value("Ada"));
 SS_program_run(&p, "Entry", my_callback, userdata); // run a named script
 SS_program_free(&p);                                // free everything
 ```
@@ -171,12 +171,13 @@ The context holds the entire execution state on an internal stack. You can
 pause between any two calls and resume whenever you like — next frame, next
 second, or after an animation finishes.
 
-### Globals
+### Constants (C API)
 
-Set globals before running a script. Scripts can read them as bare words:
+You can also register constants from C before running a script. These work
+the same as script-defined constants:
 
 ```c
-SS_program_set_global(&p, "Difficulty", SS_number_value(3));
+SS_program_set_constant(&p, "Difficulty", SS_number_value(3));
 ```
 
 ```
@@ -212,6 +213,28 @@ script Goofbert.Shop:
 
 Namespaced names work everywhere a script name is used, including `run`
 and `SS_context_create`.
+
+### Constants
+
+Define reusable constants at the top of your script file. Constants are
+available in all scripts as named values:
+
+```
+constants:
+    Hero.Name = `Hero`
+    Map.Forest = 1
+    Map.Town = 2
+
+script Entry:
+    Dialog(Hero.Name)
+    switch GetMap():
+        case Map.Forest:
+            Dialog(`Trees everywhere!`)
+        case Map.Town:
+            Dialog(`Welcome to town!`)
+```
+
+Constants support string, number, and boolean values.
 
 ### Data Types
 
@@ -253,25 +276,27 @@ switch GetMap():
 
 ### Keywords
 
-| Keyword  | Description                          |
-|----------|--------------------------------------|
-| `if`     | Conditional branch                   |
-| `elif`   | Else-if branch                       |
-| `else`   | Else branch                          |
-| `switch` | Switch on a value                    |
-| `case`   | Match arm inside a switch            |
-| `run`    | Jump to another script               |
-| `end`    | Stop execution of the current branch |
-| `true`   | Boolean literal                      |
-| `false`  | Boolean literal                      |
-| `and`    | Logical AND                          |
-| `or`     | Logical OR                           |
-| `not`    | Logical NOT (prefix)                 |
-| `is`     | Equality (`a is b`)                  |
-| `gt`     | Greater than (`a gt b`)              |
-| `gte`    | Greater than or equal (`a gte b`)    |
-| `lt`     | Less than (`a lt b`)                 |
-| `lte`    | Less than or equal (`a lte b`)       |
+| Keyword     | Description                          |
+|-------------|--------------------------------------|
+| `script`    | Define a named script block          |
+| `constants` | Define reusable named values         |
+| `if`        | Conditional branch                   |
+| `elif`      | Else-if branch                       |
+| `else`      | Else branch                          |
+| `switch`    | Switch on a value                    |
+| `case`      | Match arm inside a switch            |
+| `run`       | Jump to another script               |
+| `end`       | Stop execution of the current branch |
+| `true`      | Boolean literal                      |
+| `false`     | Boolean literal                      |
+| `and`       | Logical AND                          |
+| `or`        | Logical OR                           |
+| `not`       | Logical NOT (prefix)                 |
+| `is`        | Equality (`a is b`)                  |
+| `gt`        | Greater than (`a gt b`)              |
+| `gte`       | Greater than or equal (`a gte b`)    |
+| `lt`        | Less than (`a lt b`)                 |
+| `lte`       | Less than or equal (`a lte b`)       |
 
 ### Comments
 

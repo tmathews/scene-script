@@ -38,6 +38,8 @@ const char *SS_token_type_str(SS_token_type t) {
 		return "Comma";
 	case SS_TOK_COLON:
 		return "Colon";
+	case SS_TOK_ASSIGN:
+		return "Assign";
 	case SS_TOK_LPAREN:
 		return "LParen";
 	case SS_TOK_RPAREN:
@@ -64,6 +66,8 @@ static SS_token_type char_to_token(char c) {
 		return SS_TOK_COMMA;
 	case ':':
 		return SS_TOK_COLON;
+	case '=':
+		return SS_TOK_ASSIGN;
 	case '(':
 		return SS_TOK_LPAREN;
 	case ')':

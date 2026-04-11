@@ -52,8 +52,11 @@ static int parse_first(const char *src, SS_script **out, SS_script **all, size_t
 	size_t tokens_len;
 	if (SS_lex(src, &tokens, &tokens_len) != 0)
 		return -1;
-	int rc = SS_parse(tokens, tokens_len, all, all_len);
+	SS_constant *constants = NULL;
+	size_t constants_len = 0;
+	int rc = SS_parse(tokens, tokens_len, all, all_len, &constants, &constants_len);
 	SS_tokens_free(tokens, tokens_len);
+	SS_constants_free(constants, constants_len);
 	if (rc != 0)
 		return rc;
 	*out = &(*all)[0];
@@ -847,6 +850,76 @@ static void test_context_namespaced_run(void) {
 	SS_program_free(&p);
 }
 
+/* ── Constants tests ────────────────────────────────────────────────── */
+
+static void test_constants_basic(void) {
+	const char *src =
+		"constants:\n"
+		"\tHero.Name = `Hero`\n"
+		"\tMaxHP = 100\n"
+		"\nscript Entry:\n"
+		"\tDialog(Hero.Name)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+
+	const SS_value *name = SS_program_get_constant(&p, "Hero.Name");
+	ASSERT(name != NULL, "Hero.Name not found");
+	ASSERT(name->type == SS_VAL_STRING, "Expected string");
+	ASSERT(strcmp(name->string, "Hero") == 0, "Expected 'Hero'");
+
+	const SS_value *hp = SS_program_get_constant(&p, "MaxHP");
+	ASSERT(hp != NULL, "MaxHP not found");
+	ASSERT(hp->type == SS_VAL_NUMBER, "Expected number");
+	ASSERT(hp->number == 100, "Expected 100");
+
+	SS_program_free(&p);
+}
+
+static void test_constants_in_script(void) {
+	const char *src =
+		"constants:\n"
+		"\tGreeting = `Hello there!`\n"
+		"\nscript Entry:\n"
+		"\tDialog(Greeting)\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	SS_context *ctx = SS_context_create(&p, "Entry");
+
+	SS_status s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_CALL, "Expected CALL");
+	ASSERT(strcmp(SS_context_get_call(ctx)->name, "Dialog") == 0, "Expected Dialog");
+	ASSERT(strcmp(SS_context_get_call(ctx)->args[0].string, "Hello there!") == 0,
+		"Expected constant value");
+	SS_context_set_result(ctx, SS_nil_value());
+
+	s = SS_context_step(ctx);
+	ASSERT(s == SS_STATUS_DONE, "Expected DONE");
+
+	SS_context_free(ctx);
+	SS_program_free(&p);
+}
+
+static void test_constants_switch(void) {
+	const char *src =
+		"constants:\n"
+		"\tMap.Forest = 1\n"
+		"\tMap.Town = 2\n"
+		"\nscript Entry:\n"
+		"\tswitch 2:\n"
+		"\t\tcase Map.Forest:\n"
+		"\t\t\tA()\n"
+		"\t\tcase Map.Town:\n"
+		"\t\t\tB()\n";
+	SS_program p;
+	ASSERT(SS_program_init(&p, src) == 0, "Init failed");
+	test_eval_state st = {0};
+	int rc = SS_program_run(&p, "Entry", test_call_fn, &st);
+	ASSERT(rc == 0, "Run failed");
+	ASSERT(strcmp(st.last_call.name, "B") == 0, "Expected B");
+	free_test_state(&st);
+	SS_program_free(&p);
+}
+
 /* ── main ───────────────────────────────────────────────────────────── */
 
 int main(void) {
@@ -903,6 +976,11 @@ int main(void) {
 	RUN_TEST(test_eval_switch_string);
 	RUN_TEST(test_context_switch);
 	RUN_TEST(test_context_namespaced_run);
+
+	/* Constants */
+	RUN_TEST(test_constants_basic);
+	RUN_TEST(test_constants_in_script);
+	RUN_TEST(test_constants_switch);
 
 	printf("\n%d tests run, %d passed, %d failed\n\n", tests_run, tests_passed, tests_failed);
 	return tests_failed > 0 ? 1 : 0;
