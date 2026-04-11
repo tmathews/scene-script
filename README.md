@@ -313,4 +313,3 @@ Blocks are delimited by tabs. Each nested level requires one additional tab.
 
 Please look at the [demo file](./demo.script) for a fuller example.
 
-Copyright 2023 - 2026 Thomas Mathews
