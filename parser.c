@@ -241,8 +241,10 @@ static int parse_infix_exp(const SS_token *tokens, size_t len, size_t *i,
 	SS_token_type op = tokens[*i].type;
 	(*i)++;
 	SS_expression *right = NULL;
-	if (parse_expression(tokens, len, i, prec, &right) != 0)
+	if (parse_expression(tokens, len, i, prec, &right) != 0) {
+		exp_free(left);
 		return -1;
+	}
 	SS_expression *e = exp_new();
 	e->type = SS_EXP_INFIX;
 	e->op = op;
@@ -272,11 +274,11 @@ static int parse_expression(const SS_token *tokens, size_t len, size_t *i,
 		const SS_token *peek = &tokens[*i];
 		if (!is_exp_token(peek) || prec >= get_prec(peek) || !is_infix_token(peek))
 			break;
+		// parse_infix_exp owns `left` from here on: it either adopts it into
+		// the new expression or frees it on failure.
 		SS_expression *new_left = NULL;
-		if (parse_infix_exp(tokens, len, i, left, &new_left) != 0) {
-			exp_free(left);
+		if (parse_infix_exp(tokens, len, i, left, &new_left) != 0)
 			return -1;
-		}
 		left = new_left;
 	}
 	*out = left;

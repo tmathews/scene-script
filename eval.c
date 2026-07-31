@@ -710,6 +710,9 @@ int SS_program_init(SS_program *p, const char *src) {
 	SS_tokens_free(tokens, tokens_len);
 	if (rc != 0) {
 		SS_constants_free(constants, constants_len);
+		SS_scripts_free(p->scripts, p->scripts_len);
+		p->scripts = NULL;
+		p->scripts_len = 0;
 		return rc;
 	}
 	for (size_t i = 0; i < constants_len; i++)
